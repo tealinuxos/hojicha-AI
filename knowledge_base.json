@@ -1,0 +1,452 @@
+[
+  {
+    "id": "mem-free",
+    "command": "vm_stat",
+    "description": "Menampilkan statistik penggunaan memori virtual sistem (macOS)",
+    "keywords": ["ram", "memori", "memory", "free", "penggunaan memori", "sisa ram", "cek ram", "vm_stat"],
+    "category": "Memory",
+    "risk": "Safe",
+    "example": "vm_stat",
+    "beginner_tip": "Kalikan nilai halaman (page) dengan 16384 untuk mendapatkan ukuran dalam byte (16 KB per halaman pada Mac Apple Silicon)"
+  },
+  {
+    "id": "mem-vmstat",
+    "command": "vmstat -s",
+    "description": "Statistik memori virtual sistem secara detail",
+    "keywords": ["vmstat", "virtual memory", "memory stats", "statistik memori"],
+    "category": "Memory",
+    "risk": "Safe",
+    "example": "vmstat -s",
+    "beginner_tip": "Gunakan free -h untuk tampilan yang lebih sederhana"
+  },
+  {
+    "id": "cpu-top",
+    "command": "top -bn1 | head -20",
+    "description": "Menampilkan proses yang sedang berjalan dan penggunaan CPU secara real-time",
+    "keywords": ["cpu", "prosesor", "processor", "top", "beban cpu", "load", "penggunaan cpu"],
+    "category": "Cpu",
+    "risk": "Safe",
+    "example": "top -bn1 | head -20",
+    "beginner_tip": "Tekan 'q' untuk keluar dari mode interaktif top"
+  },
+  {
+    "id": "cpu-htop",
+    "command": "htop",
+    "description": "Monitor proses interaktif dengan tampilan yang lebih ramah pengguna dari top",
+    "keywords": ["htop", "monitor", "proses", "cpu", "interaktif"],
+    "category": "Cpu",
+    "risk": "Safe",
+    "example": "htop",
+    "beginner_tip": "htop mungkin perlu diinstal: sudo apt install htop"
+  },
+  {
+    "id": "cpu-info",
+    "command": "lscpu",
+    "description": "Menampilkan informasi detail tentang CPU seperti jumlah core dan arsitektur",
+    "keywords": ["info cpu", "spesifikasi cpu", "lscpu", "core", "processor info"],
+    "category": "Cpu",
+    "risk": "Safe",
+    "example": "lscpu",
+    "beginner_tip": "CPU(s) menunjukkan jumlah total logical processor yang dimiliki"
+  },
+  {
+    "id": "cpu-uptime",
+    "command": "uptime",
+    "description": "Menampilkan sudah berapa lama sistem berjalan dan rata-rata beban CPU",
+    "keywords": ["uptime", "berapa lama nyala", "load average", "beban sistem"],
+    "category": "Cpu",
+    "risk": "Safe",
+    "example": "uptime",
+    "beginner_tip": "Load average di bawah jumlah core CPU Anda berarti sistem tidak terbebani"
+  },
+  {
+    "id": "disk-df",
+    "command": "df -h",
+    "description": "Menampilkan penggunaan ruang disk semua partisi yang terpasang",
+    "keywords": ["disk", "penyimpanan", "storage", "df", "ruang disk", "kapasitas disk", "cek disk"],
+    "category": "Disk",
+    "risk": "Safe",
+    "example": "df -h",
+    "beginner_tip": "Kolom 'Use%' menunjukkan persentase disk yang sudah terpakai"
+  },
+  {
+    "id": "disk-du",
+    "command": "du -sh *",
+    "description": "Menampilkan ukuran setiap file dan folder di direktori saat ini",
+    "keywords": ["ukuran folder", "ukuran file", "du", "folder size", "besar folder"],
+    "category": "Disk",
+    "risk": "Safe",
+    "example": "du -sh *",
+    "beginner_tip": "Gunakan du -sh /path/to/folder untuk melihat ukuran folder tertentu"
+  },
+  {
+    "id": "disk-du-sort",
+    "command": "du -sh * | sort -h",
+    "description": "Menampilkan ukuran file/folder diurutkan dari terkecil ke terbesar",
+    "keywords": ["urut ukuran", "folder terbesar", "file terbesar", "sort size"],
+    "category": "Disk",
+    "risk": "Safe",
+    "example": "du -sh * | sort -h",
+    "beginner_tip": "Item paling bawah adalah yang paling besar ukurannya"
+  },
+  {
+    "id": "net-ping",
+    "command": "ping -c 4 google.com",
+    "description": "Mengecek koneksi internet dengan mengirim 4 paket ke google.com",
+    "keywords": ["ping", "cek internet", "koneksi internet", "internet", "konek", "network"],
+    "category": "Network",
+    "risk": "Safe",
+    "example": "ping -c 4 google.com",
+    "beginner_tip": "Angka 'time' menunjukkan latensi dalam milidetik — semakin kecil semakin bagus"
+  },
+  {
+    "id": "net-ip",
+    "command": "ip addr show",
+    "description": "Menampilkan semua interface jaringan beserta alamat IP-nya",
+    "keywords": ["ip address", "alamat ip", "ip addr", "ip saya", "lihat ip", "cek ip"],
+    "category": "Network",
+    "risk": "Safe",
+    "example": "ip addr show",
+    "beginner_tip": "Cari 'inet' untuk menemukan alamat IPv4 Anda"
+  },
+  {
+    "id": "net-ifconfig",
+    "command": "ifconfig",
+    "description": "Menampilkan konfigurasi interface jaringan (versi lama ip addr)",
+    "keywords": ["ifconfig", "network interface", "ip address", "alamat ip"],
+    "category": "Network",
+    "risk": "Safe",
+    "example": "ifconfig",
+    "beginner_tip": "Pada sistem modern, gunakan 'ip addr' sebagai gantinya"
+  },
+  {
+    "id": "net-ss",
+    "command": "ss -tuln",
+    "description": "Menampilkan semua port yang sedang terbuka dan mendengarkan koneksi",
+    "keywords": ["port", "listening port", "open port", "ss", "netstat", "port terbuka"],
+    "category": "Network",
+    "risk": "Safe",
+    "example": "ss -tuln",
+    "beginner_tip": "Port yang statusnya LISTEN berarti aktif menerima koneksi dari luar"
+  },
+  {
+    "id": "net-wget",
+    "command": "wget -q --spider google.com",
+    "description": "Mengecek apakah ada koneksi internet tanpa mengunduh file",
+    "keywords": ["cek internet", "test internet", "tes koneksi"],
+    "category": "Network",
+    "risk": "Safe",
+    "example": "wget -q --spider google.com && echo OK",
+    "beginner_tip": "Jika keluar 'OK' berarti koneksi internet aktif"
+  },
+  {
+    "id": "proc-ps",
+    "command": "ps aux",
+    "description": "Menampilkan semua proses yang sedang berjalan di sistem",
+    "keywords": ["proses", "process", "ps", "daftar proses", "running process"],
+    "category": "Process",
+    "risk": "Safe",
+    "example": "ps aux",
+    "beginner_tip": "Kolom %MEM dan %CPU menunjukkan berapa banyak sumber daya yang digunakan"
+  },
+  {
+    "id": "proc-ps-grep",
+    "command": "ps aux | grep",
+    "description": "Mencari proses tertentu berdasarkan namanya",
+    "keywords": ["cari proses", "find process", "proses nama", "grep process"],
+    "category": "Process",
+    "risk": "Safe",
+    "example": "ps aux | grep firefox",
+    "beginner_tip": "Ganti 'firefox' dengan nama aplikasi yang ingin Anda cari"
+  },
+  {
+    "id": "proc-kill",
+    "command": "kill",
+    "description": "Menghentikan sebuah proses berdasarkan PID-nya",
+    "keywords": ["kill", "hentikan proses", "matikan proses", "stop process"],
+    "category": "Process",
+    "risk": "Moderate",
+    "example": "kill 1234",
+    "beginner_tip": "Gunakan 'ps aux | grep namaapp' untuk menemukan PID suatu proses"
+  },
+  {
+    "id": "proc-pkill",
+    "command": "pkill",
+    "description": "Menghentikan proses berdasarkan namanya tanpa perlu tahu PID",
+    "keywords": ["pkill", "hentikan aplikasi", "matikan aplikasi", "stop app by name"],
+    "category": "Process",
+    "risk": "Moderate",
+    "example": "pkill firefox",
+    "beginner_tip": "Hati-hati: pkill akan menghentikan semua proses dengan nama tersebut"
+  },
+  {
+    "id": "file-ls",
+    "command": "ls -la",
+    "description": "Menampilkan semua file dan folder di direktori saat ini termasuk yang tersembunyi",
+    "keywords": ["ls", "lihat file", "daftar file", "list file", "folder isi", "isi folder"],
+    "category": "Files",
+    "risk": "Safe",
+    "example": "ls -la",
+    "beginner_tip": "File dengan nama diawali titik (.) adalah file tersembunyi di Linux"
+  },
+  {
+    "id": "file-pwd",
+    "command": "pwd",
+    "description": "Menampilkan lokasi direktori saat ini (posisi Anda di sistem file)",
+    "keywords": ["pwd", "lokasi", "posisi", "current directory", "di mana saya", "folder sekarang"],
+    "category": "Files",
+    "risk": "Safe",
+    "example": "pwd",
+    "beginner_tip": "pwd singkatan dari Print Working Directory"
+  },
+  {
+    "id": "file-find",
+    "command": "find . -name",
+    "description": "Mencari file berdasarkan nama di dalam direktori saat ini dan sub-direktori",
+    "keywords": ["cari file", "find file", "mencari", "search file", "temukan file"],
+    "category": "Files",
+    "risk": "Safe",
+    "example": "find . -name \"*.txt\"",
+    "beginner_tip": "Gunakan tanda bintang (*) sebagai wildcard, misal: *.pdf untuk semua file PDF"
+  },
+  {
+    "id": "file-mkdir",
+    "command": "mkdir",
+    "description": "Membuat folder baru",
+    "keywords": ["buat folder", "mkdir", "create folder", "buat direktori", "new folder"],
+    "category": "Files",
+    "risk": "Safe",
+    "example": "mkdir nama_folder",
+    "beginner_tip": "Gunakan mkdir -p untuk membuat folder berserta folder induknya sekaligus"
+  },
+  {
+    "id": "file-cat",
+    "command": "cat",
+    "description": "Menampilkan isi sebuah file teks di terminal",
+    "keywords": ["baca file", "isi file", "cat", "tampilkan file", "lihat isi"],
+    "category": "Files",
+    "risk": "Safe",
+    "example": "cat namafile.txt",
+    "beginner_tip": "Untuk file panjang, gunakan 'less namafile.txt' agar bisa discroll"
+  },
+  {
+    "id": "file-less",
+    "command": "less",
+    "description": "Membuka file teks panjang dengan tampilan yang bisa di-scroll",
+    "keywords": ["less", "baca file panjang", "scroll file", "lihat file besar"],
+    "category": "Files",
+    "risk": "Safe",
+    "example": "less namafile.txt",
+    "beginner_tip": "Tekan 'q' untuk keluar, 'space' untuk halaman berikutnya"
+  },
+  {
+    "id": "file-cp",
+    "command": "cp",
+    "description": "Menyalin file atau folder ke lokasi lain",
+    "keywords": ["copy file", "salin file", "cp", "duplikat file", "copy"],
+    "category": "Files",
+    "risk": "Safe",
+    "example": "cp file.txt backup.txt",
+    "beginner_tip": "Gunakan cp -r untuk menyalin seluruh folder beserta isinya"
+  },
+  {
+    "id": "file-mv",
+    "command": "mv",
+    "description": "Memindahkan atau mengganti nama file/folder",
+    "keywords": ["pindah file", "rename file", "mv", "ganti nama", "move file"],
+    "category": "Files",
+    "risk": "Moderate",
+    "example": "mv file_lama.txt file_baru.txt",
+    "beginner_tip": "mv juga bisa digunakan untuk rename: mv namalama.txt namabaru.txt"
+  },
+  {
+    "id": "file-rm",
+    "command": "rm",
+    "description": "Menghapus file (tidak bisa di-undo, hati-hati!)",
+    "keywords": ["hapus file", "delete file", "rm", "remove file"],
+    "category": "Files",
+    "risk": "Moderate",
+    "example": "rm namafile.txt",
+    "beginner_tip": "HATI-HATI: file yang dihapus tidak masuk Trash dan tidak bisa dikembalikan"
+  },
+  {
+    "id": "file-grep",
+    "command": "grep",
+    "description": "Mencari teks tertentu di dalam sebuah file atau output",
+    "keywords": ["cari teks", "grep", "search text", "temukan kata", "filter teks"],
+    "category": "Text",
+    "risk": "Safe",
+    "example": "grep \"kata kunci\" namafile.txt",
+    "beginner_tip": "Tambahkan -i untuk pencarian yang tidak memperhatikan huruf besar/kecil"
+  },
+  {
+    "id": "perm-chmod",
+    "command": "chmod",
+    "description": "Mengubah izin akses (permission) sebuah file atau folder",
+    "keywords": ["chmod", "permission", "izin", "akses file", "hak akses"],
+    "category": "Permissions",
+    "risk": "Moderate",
+    "example": "chmod 755 script.sh",
+    "beginner_tip": "755 berarti pemilik bisa baca/tulis/jalankan, orang lain hanya baca/jalankan"
+  },
+  {
+    "id": "perm-chown",
+    "command": "chown",
+    "description": "Mengubah pemilik sebuah file atau folder",
+    "keywords": ["chown", "owner", "pemilik file", "ganti pemilik"],
+    "category": "Permissions",
+    "risk": "Moderate",
+    "example": "chown user:group namafile",
+    "beginner_tip": "Biasanya perlu sudo untuk mengubah pemilik file"
+  },
+  {
+    "id": "pkg-update",
+    "command": "sudo apt update",
+    "description": "Memperbarui daftar package yang tersedia dari repository",
+    "keywords": ["update", "perbarui", "apt update", "refresh package"],
+    "category": "Package",
+    "risk": "Moderate",
+    "example": "sudo apt update",
+    "beginner_tip": "Selalu jalankan apt update sebelum menginstal software baru"
+  },
+  {
+    "id": "pkg-upgrade",
+    "command": "sudo apt upgrade",
+    "description": "Mengupgrade semua package yang sudah terinstal ke versi terbaru",
+    "keywords": ["upgrade", "perbarui software", "apt upgrade", "update software"],
+    "category": "Package",
+    "risk": "Moderate",
+    "example": "sudo apt upgrade",
+    "beginner_tip": "Jalankan apt update dulu sebelum apt upgrade"
+  },
+  {
+    "id": "pkg-install",
+    "command": "sudo apt install",
+    "description": "Menginstal software baru dari repository",
+    "keywords": ["install", "instal", "apt install", "pasang software", "install program"],
+    "category": "Package",
+    "risk": "Moderate",
+    "example": "sudo apt install namapaket",
+    "beginner_tip": "Gunakan apt search untuk mencari nama paket yang tepat"
+  },
+  {
+    "id": "pkg-remove",
+    "command": "sudo apt remove",
+    "description": "Menghapus software yang sudah terinstal",
+    "keywords": ["hapus software", "uninstall", "apt remove", "buang program"],
+    "category": "Package",
+    "risk": "Moderate",
+    "example": "sudo apt remove namapaket",
+    "beginner_tip": "Gunakan apt purge untuk menghapus beserta file konfigurasinya"
+  },
+  {
+    "id": "pkg-search",
+    "command": "apt search",
+    "description": "Mencari package yang tersedia di repository",
+    "keywords": ["cari software", "apt search", "search package", "temukan program"],
+    "category": "Package",
+    "risk": "Safe",
+    "example": "apt search namapaket",
+    "beginner_tip": "Gunakan grep untuk memfilter hasil: apt search term | grep nama"
+  },
+  {
+    "id": "sys-uname",
+    "command": "uname -a",
+    "description": "Menampilkan informasi kernel Linux yang sedang berjalan",
+    "keywords": ["uname", "versi kernel", "kernel", "sistem operasi", "os version"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "uname -a",
+    "beginner_tip": "uname -r hanya menampilkan nomor versi kernel saja"
+  },
+  {
+    "id": "sys-lsb",
+    "command": "lsb_release -a",
+    "description": "Menampilkan informasi distribusi Linux yang sedang digunakan",
+    "keywords": ["distro", "linux version", "ubuntu version", "versi linux", "os info"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "lsb_release -a",
+    "beginner_tip": "Atau cek /etc/os-release untuk informasi serupa"
+  },
+  {
+    "id": "sys-date",
+    "command": "date",
+    "description": "Menampilkan tanggal dan waktu sistem saat ini",
+    "keywords": ["tanggal", "waktu", "jam", "date", "waktu sekarang"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "date",
+    "beginner_tip": "Gunakan 'date +\"%Y-%m-%d\"' untuk format tanggal saja"
+  },
+  {
+    "id": "sys-who",
+    "command": "who",
+    "description": "Menampilkan siapa saja yang sedang login ke sistem",
+    "keywords": ["who", "siapa login", "user login", "logged in"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "who",
+    "beginner_tip": "whoami menampilkan nama user Anda yang sedang aktif"
+  },
+  {
+    "id": "sys-history",
+    "command": "history",
+    "description": "Menampilkan daftar perintah yang pernah dijalankan sebelumnya",
+    "keywords": ["history", "riwayat", "perintah sebelumnya", "histori terminal"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "history | tail -20",
+    "beginner_tip": "Tekan panah atas untuk mengulangi perintah terakhir"
+  },
+  {
+    "id": "sys-env",
+    "command": "printenv",
+    "description": "Menampilkan semua variabel lingkungan yang aktif di sesi ini",
+    "keywords": ["env", "environment variable", "variabel lingkungan", "printenv"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "printenv | grep PATH",
+    "beginner_tip": "echo $NAMA_VARIABEL untuk melihat nilai satu variabel saja"
+  },
+  {
+    "id": "cpu-temp",
+    "command": "cat /sys/class/thermal/thermal_zone0/temp",
+    "description": "Membaca suhu CPU dari sensor termal sistem. Hasilnya dalam milicelsius (bagi 1000 untuk Celsius).",
+    "keywords": ["suhu", "panas", "temperatur", "temp", "cpu temp", "thermal"],
+    "category": "Cpu",
+    "risk": "Safe",
+    "example": "cat /sys/class/thermal/thermal_zone0/temp",
+    "beginner_tip": "Suhu normal CPU saat idle: 30-50°C. Di atas 90°C perlu perhatian."
+  },
+  {
+    "id": "text-wc",
+    "command": "wc -l",
+    "description": "Menghitung jumlah baris dalam sebuah file",
+    "keywords": ["hitung baris", "word count", "wc", "jumlah baris", "berapa baris"],
+    "category": "Text",
+    "risk": "Safe",
+    "example": "wc -l namafile.txt",
+    "beginner_tip": "wc -w untuk menghitung kata, wc -c untuk menghitung karakter"
+  },
+  {
+    "id": "text-tail",
+    "command": "tail -f",
+    "description": "Memantau akhir file secara real-time (berguna untuk log)",
+    "keywords": ["tail", "log", "pantau file", "monitor log", "lihat log"],
+    "category": "Text",
+    "risk": "Safe",
+    "example": "tail -f /var/log/syslog",
+    "beginner_tip": "Tekan Ctrl+C untuk berhenti memantau"
+  },
+  {
+    "id": "text-head",
+    "command": "head -20",
+    "description": "Menampilkan 20 baris pertama dari sebuah file",
+    "keywords": ["head", "awal file", "baris pertama", "bagian atas file"],
+    "category": "Text",
+    "risk": "Safe",
+    "example": "head -20 namafile.txt",
+    "beginner_tip": "Ubah angka 20 sesuai berapa baris yang ingin ditampilkan"
+  }
+]

@@ -55,8 +55,13 @@ pub fn print_command_proposal(_command: &str) {
     // Do nothing (handled directly by print_executing)
 }
 
-pub fn print_explanation(_explanation: &str) {
-    // Do nothing
+pub fn print_explanation(explanation: &str, tip: Option<&str>) {
+    if !explanation.is_empty() {
+        println!("  {} {}", "ℹ".truecolor(104, 211, 145), explanation.truecolor(200, 200, 200));
+    }
+    if let Some(t) = tip {
+        println!("  {} {}", "💡".truecolor(251, 191, 36), t.truecolor(180, 180, 180).italic());
+    }
 }
 
 pub fn print_tip(_tip: &str) {
