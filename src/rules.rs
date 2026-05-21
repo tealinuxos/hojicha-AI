@@ -170,6 +170,14 @@ pub fn try_rule_engine(intent: &Intent, kb: &KnowledgeBase) -> Option<CommandRes
             })
         }
 
+        // ── Greetings & Info ─────────────────────────────────────────
+        Intent::Greeting => Some(CommandResponse {
+            command: None,
+            explanation: "Halo! Saya Hojicha, asisten terminal Linux bertenaga AI untuk pemula. Saya bisa membantu Anda mencari perintah Linux, memantau penggunaan RAM/disk/CPU, mencari file, mengelola proses berjalan, atau menjelaskan keluaran terminal. Apa yang ingin Anda lakukan hari ini?".into(),
+            beginner_tip: Some("Ketik pertanyaan Anda seperti 'cara cek ram' atau 'lihat file di folder ini'".into()),
+            is_safe: true,
+        }),
+
         // ── General — no rule, fall through ─────────────────────────
         Intent::General => None,
     }

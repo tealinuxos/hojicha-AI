@@ -35,6 +35,8 @@ pub enum Intent {
     SystemInfo,
     /// Show command history
     ShowHistory,
+    /// Greeting, help, or info queries
+    Greeting,
     /// General — fallback to RAG + LLM
     General,
 }
@@ -42,6 +44,11 @@ pub enum Intent {
 /// Classify user input into a structured intent.
 pub fn classify(input: &str) -> Intent {
     let s = input.to_lowercase();
+
+    // ── Greetings & Info ─────────────────────────────────────────────
+    if contains_any(&s, &["halo", "hello", "helo", "hai", "hi", "siapa kamu", "kamu siapa", "bisa apa", "bantuan", "help", "apa kabar", "apa yang bisa kamu lakukan"]) {
+        return Intent::Greeting;
+    }
 
     // ── Process management ───────────────────────────────────────────
     if contains_any(&s, &["kill", "hentikan proses", "matikan proses", "stop proses"]) {
@@ -73,7 +80,7 @@ pub fn classify(input: &str) -> Intent {
     }
 
     // ── Files ────────────────────────────────────────────────────────
-    if contains_any(&s, &["di mana saya", "posisi saya", "folder sekarang", "lokasi saya", "pwd", "current directory"]) {
+    if contains_any(&s, &["di mana saya", "posisi saya", "folder sekarang", "lokasi saya", "pwd", "current directory", "dimana saya", "dimana"]) {
         return Intent::WhereAmI;
     }
     if contains_any(&s, &["cari file", "temukan file", "find file", "mencari file"]) {
