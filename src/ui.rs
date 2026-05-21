@@ -1,5 +1,8 @@
 /// UI module: Handles all terminal output formatting with colors and styles.
 use colored::Colorize;
+use std::io::{self, Write};
+use std::thread;
+use std::time::Duration;
 
 // ─── Brand (Shown only at startup) ───────────────────────────────────────────
 
@@ -77,7 +80,15 @@ pub fn print_blocked_dangerous(reason: &str) {
 }
 
 pub fn print_no_command(explanation: &str) {
-    println!("  {}", explanation);
+    print!("  \x1b[38;2;200;200;200m");
+    let mut stdout = io::stdout();
+    for c in explanation.chars() {
+        print!("{}", c);
+        let _ = stdout.flush();
+        thread::sleep(Duration::from_millis(10));
+    }
+    print!("\x1b[0m");
+    println!();
 }
 
 pub fn print_executing(command: &str) {
