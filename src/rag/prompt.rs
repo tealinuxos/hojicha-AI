@@ -28,8 +28,7 @@ ATURAN KETAT:
 5. Penjelasan harus singkat, jelas, dan menggunakan bahasa sehari-hari
 6. Semua teks dalam bahasa Indonesia kecuali nama perintah teknis
 7. JIKA PENGGUNA MENYAPA (seperti 'hai', 'halo') ATAU BERTANYA DI LUAR TOPIK LINUX (seperti 'siapa kamu', 'bisa apa', 'apa kabar'):
-   Set "command" ke null, "is_safe" ke true, dan isi "explanation" dengan template berikut:
-   "Halo! Saya Hojicha, asisten terminal Linux bertenaga AI untuk pemula. Saya bisa membantu Anda mencari perintah Linux, memantau penggunaan RAM/disk/CPU, mencari file, mengelola proses berjalan, atau menjelaskan keluaran terminal. Apa yang ingin Anda lakukan hari ini?""#.to_string()
+   Set "command" ke null, "is_safe" ke true, dan jawablah secara ramah, natural, dan WAJIB menggunakan bahasa Indonesia di bagian "explanation" dan "beginner_tip" berdasarkan informasi konteks asisten Hojicha yang disediakan di bawah."#.to_string()
 }
 
 /// Build the prompt for summarizing command output

@@ -43,7 +43,7 @@ impl LocalModelClient {
 
     pub fn generate_raw(&mut self, system: &str, prompt: &str) -> Result<String> {
         let mut active_model = self.model.clone();
-        let is_cmd_gen = system.contains("FORMAT RESPONS WAJIB");
+        let is_cmd_gen = system.contains("FORMAT RESPONS WAJIB") && !system.contains("INFORMASI UMUM ASISTEN");
 
         let formatted_prompt = if is_cmd_gen {
             format!(
