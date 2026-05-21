@@ -298,12 +298,21 @@ impl LocalModelClient {
 
 fn download_built_in_model() -> Result<(PathBuf, PathBuf)> {
     use hf_hub::api::sync::Api;
-    use hf_hub::{Repo, RepoType};
+    use hf_hub::{Cache, Repo, RepoType};
 
-    println!("{}", "📥 Model AI lokal built-in tidak ditemukan.".yellow_or_colored());
-    println!("{}", "   Mengunduh SmolLM2-135M (105MB) dari Hugging Face Hub...".yellow_or_colored());
-    println!("{}", "   (Proses ini hanya sekali, selanjutnya akan berjalan 100% offline)".dimmed_colored());
-    println!();
+    let cache = Cache::default();
+    let repo_token = Repo::new("HuggingFaceTB/SmolLM2-135M-Instruct".to_string(), RepoType::Model);
+    let repo_model = Repo::new("bartowski/SmolLM2-135M-Instruct-GGUF".to_string(), RepoType::Model);
+
+    let is_cached = cache.repo(repo_token).get("tokenizer.json").is_some()
+        && cache.repo(repo_model).get("SmolLM2-135M-Instruct-Q4_K_M.gguf").is_some();
+
+    if !is_cached {
+        println!("{}", "📥 Model AI lokal built-in tidak ditemukan.".yellow_or_colored());
+        println!("{}", "   Mengunduh SmolLM2-135M (105MB) dari Hugging Face Hub...".yellow_or_colored());
+        println!("{}", "   (Proses ini hanya sekali, selanjutnya akan berjalan 100% offline)".dimmed_colored());
+        println!();
+    }
 
     let api = Api::new().context("Gagal menginisialisasi Hugging Face API client")?;
     
@@ -320,8 +329,10 @@ fn download_built_in_model() -> Result<(PathBuf, PathBuf)> {
     let model_path = model_repo.get("SmolLM2-135M-Instruct-Q4_K_M.gguf")
         .context("Gagal mengunduh SmolLM2-135M-Instruct-Q4_K_M.gguf")?;
 
-    println!("{}", "✅ Model dan tokenizer berhasil diunduh!".green_or_colored());
-    println!();
+    if !is_cached {
+        println!("{}", "✅ Model dan tokenizer berhasil diunduh!".green_or_colored());
+        println!();
+    }
 
     Ok((model_path, tokenizer_path))
 }

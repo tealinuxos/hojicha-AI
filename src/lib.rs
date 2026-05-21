@@ -106,21 +106,26 @@ async fn run_interactive(
         AiClient::Ollama(ollama) => {
             println!(
                 "  {} {}",
-                "✅ Terhubung ke Ollama".green().bold(),
+                "Terhubung ke Ollama".green().bold(),
                 format!("(model: {})", ollama.model).dimmed()
             );
         }
         AiClient::Local(_) => {
             println!(
                 "  {} {}",
-                "🤖 Menggunakan model built-in lokal".green().bold(),
+                "Menggunakan model built-in lokal".green().bold(),
                 "(SmolLM2-135M · Offline)".dimmed()
             );
         }
     }
     println!();
-
-    ui::print_help();
+    println!(
+        "  {}",
+        "Ketik /help atau /h untuk melihat bantuan.".truecolor(200, 200, 200)
+    );
+    println!();
+    println!("{}", "─".repeat(50).truecolor(60, 60, 80));
+    println!();
 
     // Conversation history: (user_input, ai_response_json)
     let mut history: Vec<(String, String)> = Vec::new();
@@ -140,15 +145,15 @@ async fn run_interactive(
         }
 
         match input.to_lowercase().as_str() {
-            "exit" | "quit" | "q" => {
+            "exit" | "quit" | "q" | "/exit" | "/q" => {
                 ui::print_goodbye();
                 break;
             }
-            "help" | "?" => {
+            "help" | "?" | "h" | "/help" | "/h" => {
                 ui::print_help();
                 continue;
             }
-            "model" => {
+            "model" | "/model" => {
                 match ai_client {
                     AiClient::Ollama(ollama) => {
                         ui::print_model_info(&ollama.model, &ollama.base_url);
@@ -159,7 +164,7 @@ async fn run_interactive(
                 }
                 continue;
             }
-            "clear" => {
+            "clear" | "/clear" => {
                 history.clear();
                 ui::print_history_cleared();
                 continue;
