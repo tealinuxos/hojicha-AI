@@ -51,14 +51,48 @@ impl AiClient {
         match serde_json::from_str::<CommandResponse>(&json_str) {
             Ok(resp) => Ok(resp),
             Err(_) => {
-                // Fail-safe fallback: If JSON parsing fails, extract a command from the raw text
-                let clean_cmd = crate::rag::utils::clean_raw_command(&raw);
-                Ok(CommandResponse {
-                    command: Some(clean_cmd),
-                    explanation: String::new(),
-                    beginner_tip: None,
-                    is_safe: true,
-                })
+                let raw_trimmed = raw.trim();
+                let is_conversational = raw_trimmed.starts_with('{') == false 
+                    && (raw_trimmed.to_lowercase().starts_with("hello")
+                        || raw_trimmed.to_lowercase().starts_with("hi")
+                        || raw_trimmed.to_lowercase().starts_with("halo")
+                        || raw_trimmed.to_lowercase().starts_with("hai")
+                        || raw_trimmed.to_lowercase().starts_with("i'm")
+                        || raw_trimmed.to_lowercase().starts_with("i am")
+                        || raw_trimmed.to_lowercase().starts_with("sure")
+                        || raw_trimmed.to_lowercase().starts_with("tentu")
+                        || raw_trimmed.to_lowercase().starts_with("saya")
+                        || raw_trimmed.to_lowercase().starts_with("kamu")
+                        || raw_trimmed.to_lowercase().starts_with("maaf")
+                        || raw_trimmed.to_lowercase().starts_with("tidak")
+                        || raw_trimmed.contains("help you")
+                        || raw_trimmed.contains("bantu"));
+
+                if is_conversational {
+                    Ok(CommandResponse {
+                        command: None,
+                        explanation: raw_trimmed.to_string(),
+                        beginner_tip: None,
+                        is_safe: true,
+                    })
+                } else {
+                    let clean_cmd = crate::rag::utils::clean_raw_command(&raw);
+                    if clean_cmd.is_empty() || clean_cmd.split_whitespace().count() > 10 {
+                        Ok(CommandResponse {
+                            command: None,
+                            explanation: raw_trimmed.to_string(),
+                            beginner_tip: None,
+                            is_safe: true,
+                        })
+                    } else {
+                        Ok(CommandResponse {
+                            command: Some(clean_cmd),
+                            explanation: String::new(),
+                            beginner_tip: None,
+                            is_safe: true,
+                        })
+                    }
+                }
             }
         }
     }
