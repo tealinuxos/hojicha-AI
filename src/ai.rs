@@ -196,7 +196,7 @@ impl LocalModelClient {
             };
 
             format!(
-                "<|im_start|>system\nYou are TERA, a Linux assistant. Translate user intent to a Linux command. Output ONLY the raw command. Do not explain. Do not use markdown.<|im_end|>\n\
+                "<|im_start|>system\nYou are Hojicha, a Linux assistant. Translate user intent to a Linux command. Output ONLY the raw command. Do not explain. Do not use markdown.<|im_end|>\n\
                  <|im_start|>user\n{}<|im_end|>\n\
                  <|im_start|>assistant\n{}<|im_end|>\n\
                  <|im_start|>user\n{}<|im_end|>\n\
@@ -204,7 +204,7 @@ impl LocalModelClient {
                 example.0, example.1, prompt
             )
         } else if prompt.contains("Jelaskan output di atas") || prompt.contains("Ringkasan") {
-            let simplified_system = "You are TERA, a Linux assistant. Summarize the terminal output.\n\n\
+            let simplified_system = "You are Hojicha, a Linux assistant. Summarize the terminal output.\n\n\
                  Example:\n\
                  Assistant: {\"summary\": \"Perintah berhasil dijalankan dan menampilkan daftar file.\", \"key_info\": \"Ada 5 file di direktori saat ini.\", \"next_suggestion\": \"Ketik pwd untuk melihat posisi folder Anda saat ini.\"}\n\n\
                  Respond ONLY with a JSON object in this format:\n\

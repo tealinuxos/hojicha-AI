@@ -1,12 +1,12 @@
 [package]
-name = "tera-ai"
+name = "hojicha-ai"
 version = "0.1.0"
 edition = "2021"
 description = "Lightweight AI-powered Linux CLI assistant for beginners"
-authors = ["Tera-AI"]
+authors = ["Hojicha-AI"]
 
 [[bin]]
-name = "tera"
+name = "hojicha"
 path = "src/main.rs"
 
 [dependencies]

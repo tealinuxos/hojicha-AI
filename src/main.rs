@@ -1,4 +1,4 @@
-use tera_ai::{run, Cli};
+use hojicha_ai::{run, Cli};
 use clap::Parser;
 
 #[tokio::main]

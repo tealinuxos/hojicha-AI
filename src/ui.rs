@@ -5,41 +5,40 @@ use colored::Colorize;
 
 pub fn print_banner() {
     println!();
-    println!("{}", "  ████████╗███████╗██████╗  █████╗ ".truecolor(99, 179, 237));
-    println!("{}", "     ██╔══╝██╔════╝██╔══██╗██╔══██╗".truecolor(99, 179, 237));
-    println!("{}", "     ██║   █████╗  ██████╔╝███████║".truecolor(129, 199, 247));
-    println!("{}", "     ██║   ██╔══╝  ██╔══██╗██╔══██║".truecolor(159, 219, 255));
-    println!("{}", "     ██║   ███████╗██║  ██║██║  ██║".truecolor(189, 224, 255));
-    println!("{}", "     ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝".truecolor(189, 224, 255));
+    println!("{}", r#"   __               _ _      _"#.truecolor(72, 187, 120));
+    println!("{}", r#"  / /_  ____  _____(_) /____/ /_  ____ _"#.truecolor(72, 187, 120));
+    println!("{}", r#" / __ \/ __ \/ ___/ / / ___/ __ \/ __ `/"#.truecolor(104, 211, 145));
+    println!("{}", r#"/ / / / /_/ / /__/ / / /__/ / / / /_/ /"#.truecolor(154, 230, 180));
+    println!("{}", r#"/_/ /_/\____/\___/_/_/\___/_/ /_/\__,_/"#.truecolor(198, 246, 213));
     println!();
 }
 
 pub fn print_help() {
-    println!("{}", "CARA PENGGUNAAN:".bold().truecolor(250, 204, 21));
+    println!("{}", "CARA PENGGUNAAN:".bold().truecolor(72, 187, 120));
     println!();
     println!("  {}", "Ketik pertanyaan dalam bahasa Indonesia atau Inggris:".truecolor(200, 200, 200));
     println!();
-    println!("  {} {}", "→".truecolor(99, 179, 237), "cek ram laptop saya".italic().bright_white());
-    println!("  {} {}", "→".truecolor(99, 179, 237), "lihat file di folder ini".italic().bright_white());
-    println!("  {} {}", "→".truecolor(99, 179, 237), "berapa ukuran folder Downloads?".italic().bright_white());
-    println!("  {} {}", "→".truecolor(99, 179, 237), "show running processes".italic().bright_white());
-    println!("  {} {}", "→".truecolor(99, 179, 237), "cek koneksi internet".italic().bright_white());
+    println!("  {} {}", "→".truecolor(104, 211, 145), "cek ram laptop saya".italic().bright_white());
+    println!("  {} {}", "→".truecolor(104, 211, 145), "lihat file di folder ini".italic().bright_white());
+    println!("  {} {}", "→".truecolor(104, 211, 145), "berapa ukuran folder Downloads?".italic().bright_white());
+    println!("  {} {}", "→".truecolor(104, 211, 145), "show running processes".italic().bright_white());
+    println!("  {} {}", "→".truecolor(104, 211, 145), "cek koneksi internet".italic().bright_white());
     println!();
-    println!("{}", "PERINTAH KHUSUS:".bold().truecolor(250, 204, 21));
+    println!("{}", "PERINTAH KHUSUS:".bold().truecolor(72, 187, 120));
     println!();
-    println!("  {}  - Keluar dari TERA", "exit / quit / q".truecolor(99, 179, 237));
-    println!("  {}       - Tampilkan bantuan ini", "help / ?".truecolor(99, 179, 237));
-    println!("  {}    - Tampilkan model yang digunakan", "model".truecolor(99, 179, 237));
-    println!("  {}    - Bersihkan riwayat percakapan", "clear".truecolor(99, 179, 237));
+    println!("  {}  - Keluar dari hojicha", "exit / quit / q".truecolor(72, 187, 120));
+    println!("  {}       - Tampilkan bantuan ini", "help / ?".truecolor(72, 187, 120));
+    println!("  {}    - Tampilkan model yang digunakan", "model".truecolor(72, 187, 120));
+    println!("  {}    - Bersihkan riwayat percakapan", "clear".truecolor(72, 187, 120));
     println!();
-    println!("{}", "─".repeat(50).truecolor(60, 60, 80));
+    println!("{}", "─".repeat(50).truecolor(60, 80, 68));
     println!();
 }
 
 // ─── Prompt ──────────────────────────────────────────────────────────────────
 
 pub fn print_prompt() {
-    print!("{} ", "tera ❯".truecolor(99, 179, 237).bold());
+    print!("{} ", "hojicha ❯".truecolor(72, 187, 120).bold());
 }
 
 // ─── Minimalist Execution UI ─────────────────────────────────────────────────
@@ -77,7 +76,7 @@ pub fn print_no_command(explanation: &str) {
 }
 
 pub fn print_executing(command: &str) {
-    println!("{} {}", "▶".green().bold(), command.cyan());
+    println!("{} {}", "▶".green().bold(), command.green());
 }
 
 pub fn print_raw_output(output: &str) {
@@ -110,8 +109,8 @@ pub fn print_skipped() {
 
 pub fn print_model_info(model: &str, url: &str) {
     println!();
-    println!("  {} {}", "Model:".bold().truecolor(147, 197, 253), model.truecolor(220, 220, 220));
-    println!("  {} {}", "Source:".bold().truecolor(147, 197, 253), url.truecolor(220, 220, 220));
+    println!("  {} {}", "Model:".bold().truecolor(104, 211, 145), model.truecolor(220, 220, 220));
+    println!("  {} {}", "Source:".bold().truecolor(104, 211, 145), url.truecolor(220, 220, 220));
     println!();
 }
 

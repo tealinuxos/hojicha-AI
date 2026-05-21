@@ -2,7 +2,7 @@
 
 /// System prompt that defines the assistant's persona and behavior
 pub fn system_prompt() -> String {
-    r#"Kamu adalah TERA, asisten terminal Linux yang ramah untuk pemula.
+    r#"Kamu adalah Hojicha, asisten terminal Linux yang ramah untuk pemula.
 
 PERANMU:
 - Membantu pengguna Linux pemula memahami dan menggunakan terminal
@@ -71,8 +71,8 @@ pub fn followup_prompt(history: &[(String, String)], user_input: &str) -> String
     let mut prompt = system_prompt();
     prompt.push_str("\n\nRiwayat percakapan:\n");
     for (user, assistant) in history.iter().take(5) {
-        prompt.push_str(&format!("User: {}\nTERA: {}\n\n", user, assistant));
+        prompt.push_str(&format!("User: {}\nHojicha: {}\n\n", user, assistant));
     }
-    prompt.push_str(&format!("User: {}\nTERA:", user_input));
+    prompt.push_str(&format!("User: {}\nHojicha:", user_input));
     prompt
 }

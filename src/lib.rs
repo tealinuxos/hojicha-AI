@@ -19,12 +19,12 @@ use std::io::{self, Write};
 
 // ─── CLI Definition ───────────────────────────────────────────────────────────
 
-/// TERA - Asisten Terminal Linux untuk Pemula
+/// Hojicha - Asisten Terminal Linux untuk Pemula
 #[derive(Parser)]
-#[command(name = "tera")]
+#[command(name = "hojicha")]
 #[command(version = "0.1.0")]
-#[command(about = "🤖 Asisten Terminal Linux bertenaga AI untuk Pemula", long_about = None)]
-#[command(after_help = "Contoh: tera \"cek ram laptop saya\"")]
+#[command(about = "Asisten Terminal Linux bertenaga AI untuk Pemula", long_about = None)]
+#[command(after_help = "Contoh: hojicha \"cek ram laptop saya\"")]
 pub struct Cli {
     /// Pertanyaan atau perintah dalam bahasa alami (opsional - tanpa argumen masuk mode interaktif)
     pub query: Option<String>,
