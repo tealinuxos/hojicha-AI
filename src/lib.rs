@@ -63,8 +63,8 @@ fn resolve_kb_path(cli_path: Option<&str>) -> std::path::PathBuf {
         return std::path::PathBuf::from(path_str);
     }
 
-    // 1. Check if "knowledge_base.json" exists in the current working directory (e.g. workspace root)
-    let cwd_path = std::path::Path::new("knowledge_base.json");
+    // 1. Check if "src/data/knowledge_base.json" exists in the current working directory (e.g. workspace root)
+    let cwd_path = std::path::Path::new("src/data/knowledge_base.json");
     if cwd_path.exists() {
         return cwd_path.to_path_buf();
     }
@@ -76,7 +76,7 @@ fn resolve_kb_path(cli_path: Option<&str>) -> std::path::PathBuf {
             .join("hojicha")
             .join("knowledge_base.json")
     } else {
-        std::path::PathBuf::from("knowledge_base.json")
+        std::path::PathBuf::from("src/data/knowledge_base.json")
     }
 }
 
