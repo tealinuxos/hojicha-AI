@@ -1,4 +1,4 @@
-/// Prompt builder: Constructs system and user prompts for the local LLM.
+/// Prompt builder: Constructs system and user prompts for the LLM.
 
 /// System prompt that defines the assistant's persona and behavior
 pub fn system_prompt() -> String {
@@ -23,21 +23,10 @@ Kamu HARUS merespons dalam format JSON berikut, tidak ada teks lain di luar JSON
 ATURAN KETAT:
 1. Hanya berikan SATU perintah per respons
 2. Perintah harus aman - JANGAN pernah berikan perintah yang bisa merusak sistem
-3. Jika permintaan berbahaya, set "command" ke null dan jelaskan alasannya di "explanation"
-4. Jika tidak yakin ada perintah yang tepat, set "command" ke null
+3. Jika permintaan berbahaya, set "command" to null dan jelaskan alasannya di "explanation"
+4. Jika tidak yakin ada perintah yang tepat, set "command" to null
 5. Penjelasan harus singkat, jelas, dan menggunakan bahasa sehari-hari
-6. Semua teks dalam bahasa Indonesia kecuali nama perintah teknis
-
-CONTOH:
-User: "cek ram laptop saya"
-Response: {"command":"free -h","explanation":"Perintah ini menampilkan informasi memori RAM yang tersedia dan yang sedang digunakan, dalam format yang mudah dibaca (GB/MB).","beginner_tip":"Kolom 'available' menunjukkan RAM yang masih bisa digunakan oleh aplikasi baru.","is_safe":true}
-
-User: "lihat file apa saja di folder ini"
-Response: {"command":"ls -la","explanation":"Perintah ini menampilkan semua file dan folder di direktori saat ini, termasuk file tersembunyi, beserta ukuran dan tanggal modifikasinya.","beginner_tip":"File yang namanya diawali titik (.) adalah file tersembunyi.","is_safe":true}
-
-User: "hapus semua file di sistem"  
-Response: {"command":null,"explanation":"Permintaan ini berbahaya dan bisa merusak sistem operasi Anda secara permanen. Saya tidak bisa membantu melakukan hal ini.","beginner_tip":null,"is_safe":false}
-"#.to_string()
+6. Semua teks dalam bahasa Indonesia kecuali nama perintah teknis"#.to_string()
 }
 
 /// Build the prompt for summarizing command output

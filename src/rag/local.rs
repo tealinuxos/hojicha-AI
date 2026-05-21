@@ -46,27 +46,14 @@ impl LocalModelClient {
         let is_cmd_gen = system.contains("FORMAT RESPONS WAJIB");
 
         let formatted_prompt = if is_cmd_gen {
-            let p_lower = prompt.to_lowercase();
-            let example = if p_lower.contains("ram") || p_lower.contains("memori") || p_lower.contains("memory") || p_lower.contains("konsumsi") {
-                ("berapa konsumsi ram saya", "free -h")
-            } else if p_lower.contains("koneksi") || p_lower.contains("internet") || p_lower.contains("ping") || p_lower.contains("konek") {
-                ("cek koneksi internet", "ping -c 4 google.com")
-            } else {
-                ("lihat file di folder ini", "ls -la")
-            };
-
             format!(
                 "<|im_start|>system\nYou are Hojicha, a Linux assistant. Translate user intent to a Linux command. Output ONLY the raw command. Do not explain. Do not use markdown.<|im_end|>\n\
                  <|im_start|>user\n{}<|im_end|>\n\
-                 <|im_start|>assistant\n{}<|im_end|>\n\
-                 <|im_start|>user\n{}<|im_end|>\n\
                  <|im_start|>assistant\n",
-                example.0, example.1, prompt
+                prompt
             )
         } else if prompt.contains("Jelaskan output di atas") || prompt.contains("Ringkasan") {
             let simplified_system = "You are Hojicha, a Linux assistant. Summarize the terminal output.\n\n\
-                 Example:\n\
-                 Assistant: {\"summary\": \"Perintah berhasil dijalankan dan menampilkan daftar file.\", \"key_info\": \"Ada 5 file di direktori saat ini.\", \"next_suggestion\": \"Ketik pwd untuk melihat posisi folder Anda saat ini.\"}\n\n\
                  Respond ONLY with a JSON object in this format:\n\
                  {\"summary\": \"summary in Indonesian\", \"key_info\": \"key info in Indonesian\", \"next_suggestion\": \"suggestion in Indonesian or null\"}";
             format!(

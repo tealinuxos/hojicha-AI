@@ -83,7 +83,7 @@ fn build_context(entries: &[crate::rag::retriever::RetrievedEntry<'_>]) -> Strin
 }
 
 fn build_rag_system_prompt(context: &str) -> String {
-    let base = crate::prompt::system_prompt();
+    let base = crate::rag::system_prompt();
     if context.is_empty() {
         return base;
     }

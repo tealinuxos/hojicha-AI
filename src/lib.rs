@@ -3,7 +3,6 @@
 
 pub mod executor;
 pub mod intent;
-pub mod prompt;
 pub mod rag;
 pub mod rules;
 pub mod safety;
