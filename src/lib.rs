@@ -2,18 +2,18 @@
 /// Accepts natural language in Indonesian/English, generates safe Linux commands,
 /// executes them, and explains output in beginner-friendly language.
 
-pub mod ai;
 pub mod executor;
 pub mod prompt;
+pub mod rag;
 pub mod safety;
 pub mod ui;
 
-use ai::{AiClient, LocalModelClient, OllamaClient};
 use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use executor::execute_command;
 use prompt::system_prompt;
+use rag::{AiClient, LocalModelClient, OllamaClient};
 use safety::{check_safety, RiskLevel};
 use std::io::{self, Write};
 
@@ -113,7 +113,7 @@ async fn run_interactive(
         AiClient::Local(_) => {
             println!(
                 "  {} {}",
-                "Menggunakan model built-in lokal".green().bold(),
+                "model built-in lokal".green().bold(),
                 "(SmolLM2-135M · Offline)".dimmed()
             );
         }
