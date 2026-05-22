@@ -47,10 +47,8 @@ impl LocalModelClient {
 
         let formatted_prompt = if is_cmd_gen {
             format!(
-                "<|im_start|>system\nYou are Hojicha, a Linux assistant. Translate user intent to a Linux command. Output ONLY the raw command. Do not explain. Do not use markdown.<|im_end|>\n\
-                 <|im_start|>user\n{}<|im_end|>\n\
-                 <|im_start|>assistant\n",
-                prompt
+                "<|im_start|>system\n{}<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n{{",
+                system, prompt
             )
         } else if prompt.contains("Jelaskan output di atas") || prompt.contains("Ringkasan") {
             let simplified_system = "You are Hojicha, a Linux assistant. Summarize the terminal output.\n\n\
@@ -62,10 +60,12 @@ impl LocalModelClient {
             )
         } else {
             format!(
-                "<|im_start|>system\n{}<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n{{",
+                "<|im_start|>system\n{}<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
                 system, prompt
             )
         };
+
+        let ends_with_brace = formatted_prompt.ends_with('{');
 
         let tokens = self.tokenizer.encode(formatted_prompt, true)
             .map_err(|e| anyhow::anyhow!("Encoding error: {}", e))?;
@@ -77,7 +77,14 @@ impl LocalModelClient {
 
         let mut logits_processor = LogitsProcessor::from_sampling(
             299792458,
-            Sampling::ArgMax,
+            if is_cmd_gen {
+                Sampling::ArgMax
+            } else {
+                Sampling::TopP {
+                    p: 0.95,
+                    temperature: 0.3,
+                }
+            },
         );
 
         let mut generated_tokens = vec![];
@@ -126,10 +133,10 @@ impl LocalModelClient {
         let output = self.tokenizer.decode(&generated_tokens, true)
             .map_err(|e| anyhow::anyhow!("Decoding error: {}", e))?;
 
-        let final_output = if is_cmd_gen {
-            output.trim().to_string()
-        } else {
+        let final_output = if ends_with_brace {
             format!("{{{}", output.trim())
+        } else {
+            output.trim().to_string()
         };
         Ok(final_output)
     }

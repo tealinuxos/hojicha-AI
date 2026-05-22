@@ -87,8 +87,13 @@ pub fn classify(input: &str) -> Intent {
         let pattern = extract_after(&s, &["cari file", "temukan file", "find file"]);
         return Intent::FindFile(pattern.unwrap_or_else(|| "*".to_string()));
     }
-    if contains_any(&s, &["lihat file", "list file", "isi folder", "tampilkan file", "ls", "daftar file"]) {
-        return Intent::ListFiles(None);
+    if contains_any(&s, &[
+        "lihat file", "list file", "isi folder", "tampilkan file", "ls", "daftar file",
+        "apa aja file", "apa saja file", "file apa saja", "file apa aja", "isi direktori",
+        "ada file apa"
+    ]) {
+        let path = extract_path(&s);
+        return Intent::ListFiles(path);
     }
 
     // ── System info ──────────────────────────────────────────────────
@@ -122,6 +127,21 @@ fn extract_after(s: &str, triggers: &[&str]) -> Option<String> {
             let rest = s[pos + trigger.len()..].trim();
             if !rest.is_empty() {
                 return Some(rest.to_string());
+            }
+        }
+    }
+    None
+}
+
+fn extract_path(s: &str) -> Option<String> {
+    if s.contains("di path ini") || s.contains("di sini") || s.contains("di folder ini") || s.contains("di direktori ini") {
+        return None;
+    }
+    for word in s.split_whitespace() {
+        if word.starts_with('/') || word.starts_with("./") || word.starts_with("../") || word.contains('/') {
+            let clean = word.trim_matches(|c| c == '?' || c == '!' || c == '.' || c == ',');
+            if !clean.is_empty() {
+                return Some(clean.to_string());
             }
         }
     }

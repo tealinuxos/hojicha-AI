@@ -200,4 +200,23 @@ mod tests {
         // Clean up the generated file after test
         let _ = std::fs::remove_file("non_existent_kb_for_test.json");
     }
+
+    #[test]
+    fn test_list_files_intent_and_rule() {
+        let kb = KnowledgeBase::load(Path::new("non_existent_kb_for_test_list.json"));
+        
+        // 1. Current directory
+        let intent1 = crate::intent::classify("apa aja file yg ada di path ini?");
+        assert_eq!(intent1, Intent::ListFiles(None));
+        let resp1 = try_rule_engine(&intent1, &kb).unwrap();
+        assert_eq!(resp1.command.unwrap(), "ls -la");
+        
+        // 2. Specific directory path
+        let intent2 = crate::intent::classify("apa saja file di /var/log?");
+        assert_eq!(intent2, Intent::ListFiles(Some("/var/log".to_string())));
+        let resp2 = try_rule_engine(&intent2, &kb).unwrap();
+        assert_eq!(resp2.command.unwrap(), "ls -la /var/log");
+
+        let _ = std::fs::remove_file("non_existent_kb_for_test_list.json");
+    }
 }
