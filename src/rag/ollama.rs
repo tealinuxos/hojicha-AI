@@ -73,16 +73,23 @@ impl OllamaClient {
             },
         };
 
-        let response: OllamaResponse = self
+        let res = self
             .client
             .post(&format!("{}/api/generate", self.base_url))
             .json(&request)
             .send()
             .await
-            .context("Gagal menghubungi Ollama. Apakah Ollama sudah dijalankan?")?
-            .json()
-            .await
-            .context("Gagal membaca respons dari Ollama")?;
+            .context("Gagal menghubungi Ollama. Apakah Ollama sudah dijalankan?")?;
+
+        let status = res.status();
+        let text = res.text().await.context("Gagal membaca body respons dari Ollama")?;
+
+        if !status.is_success() {
+            anyhow::bail!("Ollama error (status {}): {}", status, text);
+        }
+
+        let response: OllamaResponse = serde_json::from_str(&text)
+            .with_context(|| format!("Gagal mem-parsing JSON Ollama. Raw response: {}", text))?;
 
         let content = if response.response.trim().is_empty() {
             response.thinking.unwrap_or_default()

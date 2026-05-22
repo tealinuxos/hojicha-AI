@@ -46,7 +46,7 @@ pub fn classify(input: &str) -> Intent {
     let s = input.to_lowercase();
 
     // ── Greetings & Info ─────────────────────────────────────────────
-    if contains_any(&s, &["halo", "hello", "helo", "hai", "hi", "siapa kamu", "kamu siapa", "bisa apa", "bantuan", "help", "apa kabar", "apa yang bisa kamu lakukan"]) {
+    if contains_any(&s, &["halo", "hello", "helo", "hai", "hi", "siapa kamu", "kamu siapa", "bisa apa", "bantuan", "help", "apa kabar", "apa yang bisa kamu lakukan", "apa itu hojicha", "tentang hojicha", "tentang kamu", "siapa dirimu", "kemampuan", "fitur", "kelebihan", "cara pakai", "cara menggunakan", "panduan"]) {
         return Intent::Greeting;
     }
 

@@ -29,24 +29,34 @@ impl RagPipeline {
         ai_client: &mut AiClient,
         user_input: &str,
     ) -> Result<CommandResponse> {
-        // 1. Rewrite query for better retrieval
-        let rewritten = rewrite_query(user_input);
+        let intent = crate::intent::classify(user_input);
 
-        // 2. Hybrid retrieval
-        let hits = self.retriever.retrieve(&rewritten, &self.kb, 6);
+        let context = if intent == crate::intent::Intent::Greeting {
+            let info_str = include_str!("../data/general_info.json");
+            format!("INFORMASI UMUM ASISTEN (Gunakan ini untuk menjawab sapaan/pertanyaan tentang diri Anda secara natural):\n{}", info_str)
+        } else {
+            // 1. Rewrite query for better retrieval
+            let rewritten = rewrite_query(user_input);
 
-        // 3. Rerank
-        let ranked = rerank(&rewritten, hits);
+            // 2. Hybrid retrieval
+            let hits = self.retriever.retrieve(&rewritten, &self.kb, 6);
 
-        // 4. Build context from top-3 entries
-        let top3: Vec<_> = ranked.into_iter().take(3).collect();
-        let context = build_context(&top3);
+            // 3. Rerank
+            let ranked = rerank(&rewritten, hits);
+
+            // 4. Build context from top-3 entries
+            let top3: Vec<_> = ranked.into_iter().take(3).collect();
+            build_context(&top3)
+        };
 
         // 5. Build RAG-augmented system prompt
         let system = build_rag_system_prompt(&context);
 
         // 6. Call LLM
-        let response = ai_client.nl_to_command(&system, user_input).await?;
+        let mut response = ai_client.nl_to_command(&system, user_input).await?;
+        if intent == crate::intent::Intent::Greeting {
+            response.command = None;
+        }
         Ok(response)
     }
 }
