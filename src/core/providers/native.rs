@@ -8,7 +8,7 @@ use candle_transformers::models::quantized_llama::ModelWeights;
 use tokenizers::Tokenizer;
 
 use crate::rag::utils::ColorExt;
-use crate::config::NativeConfig;
+use crate::core::NativeConfig;
 
 pub struct NativeModelClient {
     model: ModelWeights,
@@ -20,7 +20,7 @@ pub struct NativeModelClient {
 impl NativeModelClient {
     /// Initialize native model, downloading from Hugging Face if not present, using default configuration
     pub fn load_built_in() -> Result<Self> {
-        let llm_config = crate::config::LlmConfig::load_or_create()?;
+        let llm_config = crate::core::LlmConfig::load_or_create()?;
         Self::load_with_config(llm_config.native)
     }
 
@@ -173,7 +173,7 @@ fn download_model_with_config(config: &NativeConfig) -> Result<(PathBuf, PathBuf
     }
 
     let api = Api::new().context("Gagal menginisialisasi Hugging Face API client")?;
-    
+
     let repo_info = api.model(config.tokenizer_repo.clone());
     let tokenizer_path = repo_info.get(&config.tokenizer_filename)
         .context(format!("Gagal mengunduh {}", config.tokenizer_filename))?;

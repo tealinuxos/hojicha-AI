@@ -1,10 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use crate::config::llm::providers::NativeModelClient;
-use crate::config::llm::providers::OllamaClient;
-use crate::config::llm::providers::OpenAiClient;
-use crate::config::llm::providers::GeminiClient;
-use crate::config::llm::providers::AnthropicClient;
+use crate::core::providers::{NativeModelClient, OllamaClient, OpenAiClient, GeminiClient, AnthropicClient};
 use crate::rag::utils::extract_json;
 
 #[derive(Debug, Deserialize, Clone, Serialize)]

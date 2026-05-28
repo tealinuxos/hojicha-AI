@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use crate::config::GeminiConfig;
+use crate::core::GeminiConfig;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]

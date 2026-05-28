@@ -1,7 +1,7 @@
 /// Hojicha-AI: Lightweight AI-powered Linux CLI assistant for beginners.
 /// Hybrid RAG architecture: Intent → Rules → RAG → LLM → Safety → Exec
 
-pub mod config;
+pub mod core;
 pub mod executor;
 pub mod rag;
 pub mod safety;
@@ -12,7 +12,7 @@ use clap::Parser;
 use colored::Colorize;
 use executor::execute_command;
 use rag::{AiClient, RagPipeline, validate_user_query};
-use config::llm::providers::{NativeModelClient, OllamaClient, OpenAiClient, GeminiClient, AnthropicClient};
+use core::providers::{NativeModelClient, OllamaClient, OpenAiClient, GeminiClient, AnthropicClient};
 use safety::{check_safety, RiskLevel};
 use std::io::{self, Write};
 
@@ -90,7 +90,7 @@ pub async fn run(cli: Cli) -> Result<()> {
     let rag_pipeline = RagPipeline::build(&kb_file_path);
 
     // Load configuration
-    let config = crate::config::LlmConfig::load_or_create()?;
+    let config = crate::core::LlmConfig::load_or_create()?;
 
     // Determine whether to use native or API model
     let force_native = cli.native;
@@ -123,12 +123,12 @@ pub async fn run(cli: Cli) -> Result<()> {
         }
     } else {
         match config.active {
-            crate::config::LlmType::Native => {
+            crate::core::LlmType::Native => {
                 AiClient::Native(NativeModelClient::load_with_config(config.native.clone())?)
             }
-            crate::config::LlmType::Api => {
+            crate::core::LlmType::Api => {
                 match config.active_api_provider {
-                    crate::config::ApiProvider::Ollama => {
+                    crate::core::ApiProvider::Ollama => {
                         let ollama = OllamaClient::new(&config.ollama.base_url, &config.ollama.model);
                         if ollama.ping().await {
                             AiClient::Ollama(ollama)
@@ -142,13 +142,13 @@ pub async fn run(cli: Cli) -> Result<()> {
                             AiClient::Native(NativeModelClient::load_with_config(config.native.clone())?)
                         }
                     }
-                    crate::config::ApiProvider::Openai => {
+                    crate::core::ApiProvider::Openai => {
                         AiClient::OpenAi(OpenAiClient::new(config.openai.clone()))
                     }
-                    crate::config::ApiProvider::Gemini => {
+                    crate::core::ApiProvider::Gemini => {
                         AiClient::Gemini(GeminiClient::new(config.gemini.clone()))
                     }
-                    crate::config::ApiProvider::Anthropic => {
+                    crate::core::ApiProvider::Anthropic => {
                         AiClient::Anthropic(AnthropicClient::new(config.anthropic.clone()))
                     }
                 }
@@ -258,7 +258,7 @@ async fn run_interactive(
                 continue;
             }
             "model" | "/model" => {
-                if let Err(e) = crate::config::run_model_wizard(ai_client).await {
+                if let Err(e) = crate::core::run_model_wizard(ai_client).await {
                     ui::print_error(&format!("Gagal menjalankan konfigurasi model: {}", e));
                 }
                 continue;
