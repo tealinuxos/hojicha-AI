@@ -1,7 +1,10 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use crate::rag::local::LocalModelClient;
+use crate::rag::native::NativeModelClient;
 use crate::rag::ollama::OllamaClient;
+use crate::rag::openai::OpenAiClient;
+use crate::rag::gemini::GeminiClient;
+use crate::rag::anthropic::AnthropicClient;
 use crate::rag::utils::extract_json;
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
@@ -28,7 +31,10 @@ pub struct OutputSummary {
 
 pub enum AiClient {
     Ollama(OllamaClient),
-    Local(LocalModelClient),
+    Native(NativeModelClient),
+    OpenAi(OpenAiClient),
+    Gemini(GeminiClient),
+    Anthropic(AnthropicClient),
 }
 
 impl AiClient {
@@ -40,11 +46,14 @@ impl AiClient {
     ) -> Result<CommandResponse> {
         let raw = match self {
             Self::Ollama(ollama) => ollama.generate_raw(system_prompt, user_input).await?,
-            Self::Local(local) => {
+            Self::Native(native) => {
                 let sys = system_prompt.to_string();
                 let usr = user_input.to_string();
-                local.generate_raw(&sys, &usr)?
+                native.generate_raw(&sys, &usr)?
             }
+            Self::OpenAi(openai) => openai.generate_raw(system_prompt, user_input).await?,
+            Self::Gemini(gemini) => gemini.generate_raw(system_prompt, user_input).await?,
+            Self::Anthropic(anthropic) => anthropic.generate_raw(system_prompt, user_input).await?,
         };
 
         let json_str = extract_json(&raw);
@@ -105,11 +114,14 @@ impl AiClient {
     ) -> Result<OutputSummary> {
         let raw = match self {
             Self::Ollama(ollama) => ollama.generate_raw(system_prompt, summary_prompt).await?,
-            Self::Local(local) => {
+            Self::Native(native) => {
                 let sys = system_prompt.to_string();
                 let sum = summary_prompt.to_string();
-                local.generate_raw(&sys, &sum)?
+                native.generate_raw(&sys, &sum)?
             }
+            Self::OpenAi(openai) => openai.generate_raw(system_prompt, summary_prompt).await?,
+            Self::Gemini(gemini) => gemini.generate_raw(system_prompt, summary_prompt).await?,
+            Self::Anthropic(anthropic) => anthropic.generate_raw(system_prompt, summary_prompt).await?,
         };
 
         let json_str = extract_json(&raw);
