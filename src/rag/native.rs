@@ -8,17 +8,25 @@ use candle_transformers::models::quantized_llama::ModelWeights;
 use tokenizers::Tokenizer;
 
 use crate::rag::utils::ColorExt;
+use crate::config::NativeConfig;
 
-pub struct LocalModelClient {
+pub struct NativeModelClient {
     model: ModelWeights,
     tokenizer: Tokenizer,
     device: Device,
+    config: NativeConfig,
 }
 
-impl LocalModelClient {
-    /// Initialize local model, downloading from Hugging Face if not present
+impl NativeModelClient {
+    /// Initialize native model, downloading from Hugging Face if not present, using default configuration
     pub fn load_built_in() -> Result<Self> {
-        let (model_path, tokenizer_path) = download_built_in_model()?;
+        let llm_config = crate::config::LlmConfig::load_or_create()?;
+        Self::load_with_config(llm_config.native)
+    }
+
+    /// Initialize native model with a specific configuration
+    pub fn load_with_config(config: NativeConfig) -> Result<Self> {
+        let (model_path, tokenizer_path) = download_model_with_config(&config)?;
 
         let device = Device::Cpu;
 
@@ -38,6 +46,7 @@ impl LocalModelClient {
             model,
             tokenizer,
             device,
+            config,
         })
     }
 
@@ -81,8 +90,8 @@ impl LocalModelClient {
                 Sampling::ArgMax
             } else {
                 Sampling::TopP {
-                    p: 0.95,
-                    temperature: 0.3,
+                    p: self.config.top_p as f64,
+                    temperature: self.config.temperature as f64,
                 }
             },
         );
@@ -103,7 +112,7 @@ impl LocalModelClient {
             .or_else(|| self.tokenizer.token_to_id("<|endoftext|>"))
             .unwrap_or(0);
 
-        let max_new_tokens = 800;
+        let max_new_tokens = self.config.max_tokens;
 
         for _ in 0..max_new_tokens {
             if next_token == eos_token_id {
@@ -119,7 +128,7 @@ impl LocalModelClient {
             } else {
                 candle_transformers::utils::apply_repeat_penalty(
                     &logits,
-                    1.1,
+                    self.config.repeat_penalty.unwrap_or(1.1),
                     &generated_tokens[..],
                 )?
             };
@@ -142,36 +151,39 @@ impl LocalModelClient {
     }
 }
 
-fn download_built_in_model() -> Result<(PathBuf, PathBuf)> {
+fn download_model_with_config(config: &NativeConfig) -> Result<(PathBuf, PathBuf)> {
     use hf_hub::api::sync::Api;
     use hf_hub::{Cache, Repo, RepoType};
 
     let cache = Cache::default();
-    let repo_token = Repo::new("HuggingFaceTB/SmolLM2-135M-Instruct".to_string(), RepoType::Model);
-    let repo_model = Repo::new("bartowski/SmolLM2-135M-Instruct-GGUF".to_string(), RepoType::Model);
+    let repo_token = Repo::new(config.tokenizer_repo.clone(), RepoType::Model);
+    let repo_model = Repo::new(config.repo_id.clone(), RepoType::Model);
 
-    let is_cached = cache.repo(repo_token).get("tokenizer.json").is_some()
-        && cache.repo(repo_model).get("SmolLM2-135M-Instruct-Q4_K_M.gguf").is_some();
+    let is_cached = cache.repo(repo_token).get(&config.tokenizer_filename).is_some()
+        && cache.repo(repo_model).get(&config.filename).is_some();
 
     if !is_cached {
-        println!("{}", "📥 Model AI lokal built-in tidak ditemukan.".yellow_or_colored());
-        println!("{}", "   Mengunduh SmolLM2-135M (105MB) dari Hugging Face Hub...".yellow_or_colored());
+        println!("{}", "📥 Model AI native built-in tidak ditemukan.".yellow_or_colored());
+        println!(
+            "   Mengunduh {}/{} dari Hugging Face Hub...",
+            config.repo_id, config.filename
+        );
         println!("{}", "   (Proses ini hanya sekali, selanjutnya akan berjalan 100% offline)".dimmed_colored());
         println!();
     }
 
     let api = Api::new().context("Gagal menginisialisasi Hugging Face API client")?;
     
-    let repo_info = api.model("HuggingFaceTB/SmolLM2-135M-Instruct".to_string());
-    let tokenizer_path = repo_info.get("tokenizer.json")
-        .context("Gagal mengunduh tokenizer.json")?;
+    let repo_info = api.model(config.tokenizer_repo.clone());
+    let tokenizer_path = repo_info.get(&config.tokenizer_filename)
+        .context(format!("Gagal mengunduh {}", config.tokenizer_filename))?;
 
     let model_repo = api.repo(Repo::new(
-        "bartowski/SmolLM2-135M-Instruct-GGUF".to_string(),
+        config.repo_id.clone(),
         RepoType::Model,
     ));
-    let model_path = model_repo.get("SmolLM2-135M-Instruct-Q4_K_M.gguf")
-        .context("Gagal mengunduh SmolLM2-135M-Instruct-Q4_K_M.gguf")?;
+    let model_path = model_repo.get(&config.filename)
+        .context(format!("Gagal mengunduh {}", config.filename))?;
 
     if !is_cached {
         println!("{}", "✅ Model dan tokenizer berhasil diunduh!".green_or_colored());

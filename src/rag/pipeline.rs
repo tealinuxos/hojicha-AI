@@ -29,34 +29,32 @@ impl RagPipeline {
         ai_client: &mut AiClient,
         user_input: &str,
     ) -> Result<CommandResponse> {
-        let intent = crate::intent::classify(user_input);
+        // 1. Rewrite query for better retrieval
+        let rewritten = rewrite_query(user_input);
 
-        let context = if intent == crate::intent::Intent::Greeting {
-            let info_str = include_str!("../data/general_info.json");
-            format!("INFORMASI UMUM ASISTEN (Gunakan ini untuk menjawab sapaan/pertanyaan tentang diri Anda secara natural):\n{}", info_str)
-        } else {
-            // 1. Rewrite query for better retrieval
-            let rewritten = rewrite_query(user_input);
+        // 2. Hybrid retrieval
+        let hits = self.retriever.retrieve(&rewritten, &self.kb, 6);
 
-            // 2. Hybrid retrieval
-            let hits = self.retriever.retrieve(&rewritten, &self.kb, 6);
+        // 3. Rerank
+        let ranked = rerank(&rewritten, hits);
 
-            // 3. Rerank
-            let ranked = rerank(&rewritten, hits);
+        // 4. Build context from top-3 entries
+        let top3: Vec<_> = ranked.into_iter().take(3).collect();
+        let mut context = build_context(&top3);
 
-            // 4. Build context from top-3 entries
-            let top3: Vec<_> = ranked.into_iter().take(3).collect();
-            build_context(&top3)
-        };
+        // 5. Append general assistant info to context so the model always has its persona context
+        let info_str = include_str!("../data/general_info.json");
+        if !context.is_empty() {
+            context.push_str("\n\n");
+        }
+        context.push_str("INFORMASI UMUM ASISTEN (Gunakan ini untuk menjawab sapaan/pertanyaan tentang diri Anda secara natural):\n");
+        context.push_str(info_str);
 
-        // 5. Build RAG-augmented system prompt
+        // 6. Build RAG-augmented system prompt
         let system = build_rag_system_prompt(&context);
 
-        // 6. Call LLM
-        let mut response = ai_client.nl_to_command(&system, user_input).await?;
-        if intent == crate::intent::Intent::Greeting {
-            response.command = None;
-        }
+        // 7. Call LLM
+        let response = ai_client.nl_to_command(&system, user_input).await?;
         Ok(response)
     }
 }
