@@ -1,18 +1,18 @@
 [
   {
     "id": "mem-free",
-    "command": "vm_stat",
-    "description": "Menampilkan statistik penggunaan memori virtual sistem (macOS)",
-    "keywords": ["ram", "memori", "memory", "free", "penggunaan memori", "sisa ram", "cek ram", "vm_stat"],
+    "command": "free -h",
+    "description": "Menampilkan statistik penggunaan memori fisik dan swap sistem (Linux)",
+    "keywords": ["ram", "memori", "memory", "free", "penggunaan memori", "sisa ram", "cek ram", "free -h"],
     "category": "Memory",
     "risk": "Safe",
-    "example": "vm_stat",
-    "beginner_tip": "Kalikan nilai halaman (page) dengan 16384 untuk mendapatkan ukuran dalam byte (16 KB per halaman pada Mac Apple Silicon)"
+    "example": "free -h",
+    "beginner_tip": "Gunakan flag -h agar ukurannya mudah dibaca manusia (misal: 4G, 512M)"
   },
   {
     "id": "mem-vmstat",
     "command": "vmstat -s",
-    "description": "Statistik memori virtual sistem secara detail",
+    "description": "Statistik memori virtual sistem secara detail (Linux)",
     "keywords": ["vmstat", "virtual memory", "memory stats", "statistik memori"],
     "category": "Memory",
     "risk": "Safe",
@@ -22,12 +22,12 @@
   {
     "id": "cpu-top",
     "command": "top -bn1 | head -20",
-    "description": "Menampilkan proses yang sedang berjalan dan penggunaan CPU secara real-time",
+    "description": "Menampilkan proses yang sedang berjalan dan penggunaan CPU secara real-time (Linux)",
     "keywords": ["cpu", "prosesor", "processor", "top", "beban cpu", "load", "penggunaan cpu"],
     "category": "Cpu",
     "risk": "Safe",
     "example": "top -bn1 | head -20",
-    "beginner_tip": "Tekan 'q' untuk keluar dari mode interaktif top"
+    "beginner_tip": "Tekan 'q' untuk keluar dari mode interaktif top jika dijalankan tanpa batasan iterasi"
   },
   {
     "id": "cpu-htop",
@@ -37,12 +37,12 @@
     "category": "Cpu",
     "risk": "Safe",
     "example": "htop",
-    "beginner_tip": "htop mungkin perlu diinstal: sudo apt install htop"
+    "beginner_tip": "htop mungkin perlu diinstal terlebih dahulu: sudo apt install htop"
   },
   {
     "id": "cpu-info",
     "command": "lscpu",
-    "description": "Menampilkan informasi detail tentang CPU seperti jumlah core dan arsitektur",
+    "description": "Menampilkan informasi detail tentang CPU seperti jumlah core dan arsitektur (Linux)",
     "keywords": ["info cpu", "spesifikasi cpu", "lscpu", "core", "processor info"],
     "category": "Cpu",
     "risk": "Safe",
@@ -82,7 +82,7 @@
   {
     "id": "disk-du-sort",
     "command": "du -sh * | sort -h",
-    "description": "Menampilkan ukuran file/folder diurutkan dari terkecil ke terbesar",
+    "description": "Menampilkan ukuran file/folder diurutkan dari terkecil ke terbesar (Linux)",
     "keywords": ["urut ukuran", "folder terbesar", "file terbesar", "sort size"],
     "category": "Disk",
     "risk": "Safe",
@@ -102,7 +102,7 @@
   {
     "id": "net-ip",
     "command": "ip addr show",
-    "description": "Menampilkan semua interface jaringan beserta alamat IP-nya",
+    "description": "Menampilkan semua interface jaringan beserta alamat IP-nya (Linux)",
     "keywords": ["ip address", "alamat ip", "ip addr", "ip saya", "lihat ip", "cek ip"],
     "category": "Network",
     "risk": "Safe",
@@ -112,7 +112,7 @@
   {
     "id": "net-ifconfig",
     "command": "ifconfig",
-    "description": "Menampilkan konfigurasi interface jaringan (versi lama ip addr)",
+    "description": "Menampilkan konfigurasi interface jaringan lengkap",
     "keywords": ["ifconfig", "network interface", "ip address", "alamat ip"],
     "category": "Network",
     "risk": "Safe",
@@ -122,7 +122,7 @@
   {
     "id": "net-ss",
     "command": "ss -tuln",
-    "description": "Menampilkan semua port yang sedang terbuka dan mendengarkan koneksi",
+    "description": "Menampilkan semua port yang sedang terbuka dan mendengarkan koneksi (Linux)",
     "keywords": ["port", "listening port", "open port", "ss", "netstat", "port terbuka"],
     "category": "Network",
     "risk": "Safe",
@@ -302,7 +302,7 @@
   {
     "id": "pkg-update",
     "command": "sudo apt update",
-    "description": "Memperbarui daftar package yang tersedia dari repository",
+    "description": "Memperbarui daftar package yang tersedia dari repository (Linux)",
     "keywords": ["update", "perbarui", "apt update", "refresh package"],
     "category": "Package",
     "risk": "Moderate",
@@ -312,7 +312,7 @@
   {
     "id": "pkg-upgrade",
     "command": "sudo apt upgrade",
-    "description": "Mengupgrade semua package yang sudah terinstal ke versi terbaru",
+    "description": "Mengupgrade semua package yang sudah terinstal ke versi terbaru (Linux)",
     "keywords": ["upgrade", "perbarui software", "apt upgrade", "update software"],
     "category": "Package",
     "risk": "Moderate",
@@ -322,7 +322,7 @@
   {
     "id": "pkg-install",
     "command": "sudo apt install",
-    "description": "Menginstal software baru dari repository",
+    "description": "Menginstal software baru dari repository (Linux)",
     "keywords": ["install", "instal", "apt install", "pasang software", "install program"],
     "category": "Package",
     "risk": "Moderate",
@@ -332,7 +332,7 @@
   {
     "id": "pkg-remove",
     "command": "sudo apt remove",
-    "description": "Menghapus software yang sudah terinstal",
+    "description": "Menghapus software yang sudah terinstal (Linux)",
     "keywords": ["hapus software", "uninstall", "apt remove", "buang program"],
     "category": "Package",
     "risk": "Moderate",
@@ -342,7 +342,7 @@
   {
     "id": "pkg-search",
     "command": "apt search",
-    "description": "Mencari package yang tersedia di repository",
+    "description": "Mencari package yang tersedia di repository (Linux)",
     "keywords": ["cari software", "apt search", "search package", "temukan program"],
     "category": "Package",
     "risk": "Safe",
@@ -392,7 +392,7 @@
   {
     "id": "sys-history",
     "command": "history",
-    "description": "Menampilkan daftar perintah yang pernah dijalankan sebelumnya",
+    "description": "Menampilkan daftar perintah yang pernah dijalankan sebelumnya di terminal",
     "keywords": ["history", "riwayat", "perintah sebelumnya", "histori terminal"],
     "category": "System",
     "risk": "Safe",
@@ -441,12 +441,42 @@
   },
   {
     "id": "text-head",
-    "command": "head -20",
+    "command": "head -n 20",
     "description": "Menampilkan 20 baris pertama dari sebuah file",
     "keywords": ["head", "awal file", "baris pertama", "bagian atas file"],
     "category": "Text",
     "risk": "Safe",
-    "example": "head -20 namafile.txt",
+    "example": "head -n 20 namafile.txt",
     "beginner_tip": "Ubah angka 20 sesuai berapa baris yang ingin ditampilkan"
+  },
+  {
+    "id": "hojicha-info",
+    "command": "",
+    "description": "Hojicha adalah asisten terminal Linux bertenaga AI yang ramah untuk pemula, dikembangkan oleh pengembang Tea Linux OS. Hojicha membantu menerjemahkan bahasa sehari-hari ke perintah Linux, memantau sistem, mencari file, mengelola folder, dan menghentikan proses secara aman.",
+    "keywords": ["siapa kamu", "kamu siapa", "apa itu hojicha", "tentang hojicha", "siapa dirimu", "bisa apa", "fitur", "kemampuan"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "",
+    "beginner_tip": ""
+  },
+  {
+    "id": "hojicha-greeting",
+    "command": "",
+    "description": "Menyapa pengguna secara ramah dan natural (seperti 'Halo! Ada yang bisa saya bantu hari ini?').",
+    "keywords": ["halo", "hello", "hai", "hi", "apa kabar"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "",
+    "beginner_tip": ""
+  },
+  {
+    "id": "hojicha-help",
+    "command": "hojicha --help",
+    "description": "Menampilkan petunjuk penggunaan dan opsi bantuan untuk asisten terminal Hojicha",
+    "keywords": ["help", "bantuan", "cara pakai", "cara menggunakan", "panduan"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "hojicha --help",
+    "beginner_tip": "Ketik pertanyaan Anda secara langsung dalam bahasa alami untuk mendapatkan bantuan perintah Linux"
   }
 ]

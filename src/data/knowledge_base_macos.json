@@ -1,0 +1,482 @@
+[
+  {
+    "id": "mem-free",
+    "command": "vm_stat",
+    "description": "Menampilkan statistik penggunaan memori virtual sistem (macOS)",
+    "keywords": ["ram", "memori", "memory", "free", "penggunaan memori", "sisa ram", "cek ram", "vm_stat"],
+    "category": "Memory",
+    "risk": "Safe",
+    "example": "vm_stat",
+    "beginner_tip": "Kalikan nilai halaman (page) dengan 16384 untuk mendapatkan ukuran dalam byte (16 KB per halaman pada Mac Apple Silicon)"
+  },
+  {
+    "id": "mem-physmem",
+    "command": "top -l 1 -s 0 | grep PhysMem",
+    "description": "Statistik memori fisik sistem secara detail pada macOS",
+    "keywords": ["physmem", "physical memory", "memory stats", "statistik memori", "ram macos"],
+    "category": "Memory",
+    "risk": "Safe",
+    "example": "top -l 1 -s 0 | grep PhysMem",
+    "beginner_tip": "Menampilkan memori yang terpakai (wired, active, inactive) dan yang bebas"
+  },
+  {
+    "id": "cpu-top",
+    "command": "top -l 1 -o cpu | head -n 20",
+    "description": "Menampilkan proses yang sedang berjalan dan penggunaan CPU secara real-time pada macOS",
+    "keywords": ["cpu", "prosesor", "processor", "top", "beban cpu", "load", "penggunaan cpu"],
+    "category": "Cpu",
+    "risk": "Safe",
+    "example": "top -l 1 -o cpu | head -n 20",
+    "beginner_tip": "Tekan 'q' untuk keluar jika Anda menjalankan top secara interaktif tanpa batasan sampel"
+  },
+  {
+    "id": "cpu-htop",
+    "command": "htop",
+    "description": "Monitor proses interaktif dengan tampilan yang lebih ramah pengguna dari top",
+    "keywords": ["htop", "monitor", "proses", "cpu", "interaktif"],
+    "category": "Cpu",
+    "risk": "Safe",
+    "example": "htop",
+    "beginner_tip": "htop mungkin perlu diinstal terlebih dahulu menggunakan Homebrew: brew install htop"
+  },
+  {
+    "id": "cpu-info",
+    "command": "sysctl -a | grep machdep.cpu",
+    "description": "Menampilkan informasi detail tentang arsitektur dan spesifikasi CPU (macOS)",
+    "keywords": ["info cpu", "spesifikasi cpu", "sysctl", "core", "processor info", "cpu mac"],
+    "category": "Cpu",
+    "risk": "Safe",
+    "example": "sysctl -a | grep machdep.cpu",
+    "beginner_tip": "machdep.cpu.brand_string menampilkan nama prosesor Intel atau Apple Silicon Anda"
+  },
+  {
+    "id": "cpu-uptime",
+    "command": "uptime",
+    "description": "Menampilkan sudah berapa lama sistem berjalan dan rata-rata beban CPU",
+    "keywords": ["uptime", "berapa lama nyala", "load average", "beban sistem"],
+    "category": "Cpu",
+    "risk": "Safe",
+    "example": "uptime",
+    "beginner_tip": "Load average di bawah jumlah core CPU Anda berarti sistem tidak terbebani"
+  },
+  {
+    "id": "disk-df",
+    "command": "df -h",
+    "description": "Menampilkan penggunaan ruang disk semua partisi yang terpasang",
+    "keywords": ["disk", "penyimpanan", "storage", "df", "ruang disk", "kapasitas disk", "cek disk"],
+    "category": "Disk",
+    "risk": "Safe",
+    "example": "df -h",
+    "beginner_tip": "Kolom 'Use%' menunjukkan persentase disk yang sudah terpakai"
+  },
+  {
+    "id": "disk-du",
+    "command": "du -sh *",
+    "description": "Menampilkan ukuran setiap file dan folder di direktori saat ini",
+    "keywords": ["ukuran folder", "ukuran file", "du", "folder size", "besar folder"],
+    "category": "Disk",
+    "risk": "Safe",
+    "example": "du -sh *",
+    "beginner_tip": "Gunakan du -sh /path/to/folder untuk melihat ukuran folder tertentu"
+  },
+  {
+    "id": "disk-du-sort",
+    "command": "du -sh * | sort -rn",
+    "description": "Menampilkan ukuran file/folder diurutkan dari terbesar ke terkecil (macOS)",
+    "keywords": ["urut ukuran", "folder terbesar", "file terbesar", "sort size"],
+    "category": "Disk",
+    "risk": "Safe",
+    "example": "du -sh * | sort -rn",
+    "beginner_tip": "Item paling atas adalah yang paling besar ukurannya"
+  },
+  {
+    "id": "net-ping",
+    "command": "ping -c 4 google.com",
+    "description": "Mengecek koneksi internet dengan mengirim 4 paket ke google.com",
+    "keywords": ["ping", "cek internet", "koneksi internet", "internet", "konek", "network"],
+    "category": "Network",
+    "risk": "Safe",
+    "example": "ping -c 4 google.com",
+    "beginner_tip": "Angka 'time' menunjukkan latensi dalam milidetik — semakin kecil semakin bagus"
+  },
+  {
+    "id": "net-ip",
+    "command": "ifconfig | grep \"inet \"",
+    "description": "Menampilkan alamat IP lokal aktif pada interface jaringan (macOS)",
+    "keywords": ["ip address", "alamat ip", "ifconfig", "ip saya", "lihat ip", "cek ip"],
+    "category": "Network",
+    "risk": "Safe",
+    "example": "ifconfig | grep \"inet \"",
+    "beginner_tip": "inet 127.0.0.1 adalah loopback lokal, cari interface seperti en0 untuk IP Wi-Fi Anda"
+  },
+  {
+    "id": "net-ifconfig",
+    "command": "ifconfig",
+    "description": "Menampilkan konfigurasi interface jaringan lengkap (macOS)",
+    "keywords": ["ifconfig", "network interface", "ip address", "alamat ip"],
+    "category": "Network",
+    "risk": "Safe",
+    "example": "ifconfig",
+    "beginner_tip": "Gunakan 'ifconfig en0' untuk melihat detail koneksi Wi-Fi utama saja"
+  },
+  {
+    "id": "net-ss",
+    "command": "lsof -iTCP -sTCP:LISTEN",
+    "description": "Menampilkan semua port TCP yang sedang terbuka dan mendengarkan koneksi (macOS)",
+    "keywords": ["port", "listening port", "open port", "lsof", "port terbuka"],
+    "category": "Network",
+    "risk": "Safe",
+    "example": "lsof -iTCP -sTCP:LISTEN",
+    "beginner_tip": "Menampilkan nama aplikasi (COMMAND) beserta nomor port yang sedang terbuka"
+  },
+  {
+    "id": "net-curl",
+    "command": "curl -I google.com",
+    "description": "Mengecek koneksi internet dengan mengambil header HTTP dari google.com",
+    "keywords": ["cek internet", "test internet", "tes koneksi", "curl"],
+    "category": "Network",
+    "risk": "Safe",
+    "example": "curl -I google.com",
+    "beginner_tip": "Jika respons mengembalikan status HTTP 200 atau 301, koneksi internet aktif"
+  },
+  {
+    "id": "proc-ps",
+    "command": "ps aux",
+    "description": "Menampilkan semua proses yang sedang berjalan di sistem",
+    "keywords": ["proses", "process", "ps", "daftar proses", "running process"],
+    "category": "Process",
+    "risk": "Safe",
+    "example": "ps aux",
+    "beginner_tip": "Kolom %MEM dan %CPU menunjukkan berapa banyak sumber daya yang digunakan"
+  },
+  {
+    "id": "proc-ps-grep",
+    "command": "ps aux | grep",
+    "description": "Mencari proses tertentu berdasarkan namanya",
+    "keywords": ["cari proses", "find process", "proses nama", "grep process"],
+    "category": "Process",
+    "risk": "Safe",
+    "example": "ps aux | grep firefox",
+    "beginner_tip": "Ganti 'firefox' dengan nama aplikasi yang ingin Anda cari"
+  },
+  {
+    "id": "proc-kill",
+    "command": "kill",
+    "description": "Menghentikan sebuah proses berdasarkan PID-nya",
+    "keywords": ["kill", "hentikan proses", "matikan proses", "stop process"],
+    "category": "Process",
+    "risk": "Moderate",
+    "example": "kill 1234",
+    "beginner_tip": "Gunakan 'ps aux | grep namaapp' untuk menemukan PID suatu proses"
+  },
+  {
+    "id": "proc-pkill",
+    "command": "pkill",
+    "description": "Menghentikan proses berdasarkan namanya tanpa perlu tahu PID",
+    "keywords": ["pkill", "hentikan aplikasi", "matikan aplikasi", "stop app by name"],
+    "category": "Process",
+    "risk": "Moderate",
+    "example": "pkill firefox",
+    "beginner_tip": "Hati-hati: pkill akan menghentikan semua proses dengan nama tersebut"
+  },
+  {
+    "id": "file-ls",
+    "command": "ls -la",
+    "description": "Menampilkan semua file dan folder di direktori saat ini termasuk yang tersembunyi",
+    "keywords": ["ls", "lihat file", "daftar file", "list file", "folder isi", "isi folder"],
+    "category": "Files",
+    "risk": "Safe",
+    "example": "ls -la",
+    "beginner_tip": "File dengan nama diawali titik (.) adalah file tersembunyi"
+  },
+  {
+    "id": "file-pwd",
+    "command": "pwd",
+    "description": "Menampilkan lokasi direktori saat ini (posisi Anda di sistem file)",
+    "keywords": ["pwd", "lokasi", "posisi", "current directory", "di mana saya", "folder sekarang"],
+    "category": "Files",
+    "risk": "Safe",
+    "example": "pwd",
+    "beginner_tip": "pwd singkatan dari Print Working Directory"
+  },
+  {
+    "id": "file-find",
+    "command": "find . -name",
+    "description": "Mencari file berdasarkan nama di dalam direktori saat ini dan sub-direktori",
+    "keywords": ["cari file", "find file", "mencari", "search file", "temukan file"],
+    "category": "Files",
+    "risk": "Safe",
+    "example": "find . -name \"*.txt\"",
+    "beginner_tip": "Gunakan tanda bintang (*) sebagai wildcard, misal: *.pdf untuk semua file PDF"
+  },
+  {
+    "id": "file-mkdir",
+    "command": "mkdir",
+    "description": "Membuat folder baru",
+    "keywords": ["buat folder", "mkdir", "create folder", "buat direktori", "new folder"],
+    "category": "Files",
+    "risk": "Safe",
+    "example": "mkdir nama_folder",
+    "beginner_tip": "Gunakan mkdir -p untuk membuat folder beserta folder induknya sekaligus"
+  },
+  {
+    "id": "file-cat",
+    "command": "cat",
+    "description": "Menampilkan isi sebuah file teks di terminal",
+    "keywords": ["baca file", "isi file", "cat", "tampilkan file", "lihat isi"],
+    "category": "Files",
+    "risk": "Safe",
+    "example": "cat namafile.txt",
+    "beginner_tip": "Untuk file panjang, gunakan 'less namafile.txt' agar bisa discroll"
+  },
+  {
+    "id": "file-less",
+    "command": "less",
+    "description": "Membuka file teks panjang dengan tampilan yang bisa di-scroll",
+    "keywords": ["less", "baca file panjang", "scroll file", "lihat file besar"],
+    "category": "Files",
+    "risk": "Safe",
+    "example": "less namafile.txt",
+    "beginner_tip": "Tekan 'q' untuk keluar, 'space' untuk halaman berikutnya"
+  },
+  {
+    "id": "file-cp",
+    "command": "cp",
+    "description": "Menyalin file atau folder ke lokasi lain",
+    "keywords": ["copy file", "salin file", "cp", "duplikat file", "copy"],
+    "category": "Files",
+    "risk": "Safe",
+    "example": "cp file.txt backup.txt",
+    "beginner_tip": "Gunakan cp -r untuk menyalin seluruh folder beserta isinya"
+  },
+  {
+    "id": "file-mv",
+    "command": "mv",
+    "description": "Memindahkan atau mengganti nama file/folder",
+    "keywords": ["pindah file", "rename file", "mv", "ganti nama", "move file"],
+    "category": "Files",
+    "risk": "Moderate",
+    "example": "mv file_lama.txt file_baru.txt",
+    "beginner_tip": "mv juga bisa digunakan untuk rename: mv namalama.txt namabaru.txt"
+  },
+  {
+    "id": "file-rm",
+    "command": "rm",
+    "description": "Menghapus file (tidak bisa di-undo, hati-hati!)",
+    "keywords": ["hapus file", "delete file", "rm", "remove file"],
+    "category": "Files",
+    "risk": "Moderate",
+    "example": "rm namafile.txt",
+    "beginner_tip": "HATI-HATI: file yang dihapus tidak masuk Trash dan tidak bisa dikembalikan"
+  },
+  {
+    "id": "file-grep",
+    "command": "grep",
+    "description": "Mencari teks tertentu di dalam sebuah file atau output",
+    "keywords": ["cari teks", "grep", "search text", "temukan kata", "filter teks"],
+    "category": "Text",
+    "risk": "Safe",
+    "example": "grep \"kata kunci\" namafile.txt",
+    "beginner_tip": "Tambahkan -i untuk pencarian yang tidak memperhatikan huruf besar/kecil"
+  },
+  {
+    "id": "perm-chmod",
+    "command": "chmod",
+    "description": "Mengubah izin akses (permission) sebuah file atau folder",
+    "keywords": ["chmod", "permission", "izin", "akses file", "hak akses"],
+    "category": "Permissions",
+    "risk": "Moderate",
+    "example": "chmod 755 script.sh",
+    "beginner_tip": "755 berarti pemilik bisa baca/tulis/jalankan, orang lain hanya baca/jalankan"
+  },
+  {
+    "id": "perm-chown",
+    "command": "chown",
+    "description": "Mengubah pemilik sebuah file atau folder",
+    "keywords": ["chown", "owner", "pemilik file", "ganti pemilik"],
+    "category": "Permissions",
+    "risk": "Moderate",
+    "example": "chown user:staff namafile",
+    "beginner_tip": "Pada macOS, group default untuk pengguna biasa adalah 'staff'"
+  },
+  {
+    "id": "pkg-update",
+    "command": "brew update",
+    "description": "Memperbarui daftar package Homebrew yang tersedia",
+    "keywords": ["update", "perbarui", "brew update", "refresh package", "brew"],
+    "category": "Package",
+    "risk": "Moderate",
+    "example": "brew update",
+    "beginner_tip": "Selalu jalankan brew update sebelum menginstal software baru di macOS"
+  },
+  {
+    "id": "pkg-upgrade",
+    "command": "brew upgrade",
+    "description": "Mengupgrade semua package terinstal di macOS ke versi terbaru lewat Homebrew",
+    "keywords": ["upgrade", "perbarui software", "brew upgrade", "update software"],
+    "category": "Package",
+    "risk": "Moderate",
+    "example": "brew upgrade",
+    "beginner_tip": "Ini akan memperbarui semua formula Homebrew yang telah terinstal"
+  },
+  {
+    "id": "pkg-install",
+    "command": "brew install",
+    "description": "Menginstal software baru menggunakan Homebrew di macOS",
+    "keywords": ["install", "instal", "brew install", "pasang software", "install program"],
+    "category": "Package",
+    "risk": "Moderate",
+    "example": "brew install namapaket",
+    "beginner_tip": "Homebrew adalah package manager terpopuler untuk macOS"
+  },
+  {
+    "id": "pkg-remove",
+    "command": "brew uninstall",
+    "description": "Menghapus software terinstal lewat Homebrew",
+    "keywords": ["hapus software", "uninstall", "brew uninstall", "buang program"],
+    "category": "Package",
+    "risk": "Moderate",
+    "example": "brew uninstall namapaket",
+    "beginner_tip": "Gunakan brew cleanup setelah uninstall untuk membersihkan sisa file cache"
+  },
+  {
+    "id": "pkg-search",
+    "command": "brew search",
+    "description": "Mencari formula package yang tersedia di Homebrew",
+    "keywords": ["cari software", "brew search", "search package", "temukan program"],
+    "category": "Package",
+    "risk": "Safe",
+    "example": "brew search namapaket",
+    "beginner_tip": "Mencari baik formula lokal maupun cask (aplikasi GUI)"
+  },
+  {
+    "id": "sys-uname",
+    "command": "uname -a",
+    "description": "Menampilkan informasi sistem kernel Darwin macOS yang berjalan",
+    "keywords": ["uname", "versi kernel", "kernel", "sistem operasi", "os version"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "uname -a",
+    "beginner_tip": "Pada Mac, ini akan menampilkan versi kernel Darwin"
+  },
+  {
+    "id": "sys-swvers",
+    "command": "sw_vers",
+    "description": "Menampilkan informasi versi macOS yang sedang digunakan",
+    "keywords": ["distro", "macos version", "versi mac", "os info", "sw_vers"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "sw_vers",
+    "beginner_tip": "Menampilkan nama produk (macOS), versi produk (misal 14.1), dan build version"
+  },
+  {
+    "id": "sys-date",
+    "command": "date",
+    "description": "Menampilkan tanggal dan waktu sistem saat ini",
+    "keywords": ["tanggal", "waktu", "jam", "date", "waktu sekarang"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "date",
+    "beginner_tip": "Gunakan 'date +\"%Y-%m-%d\"' untuk format tanggal saja"
+  },
+  {
+    "id": "sys-who",
+    "command": "who",
+    "description": "Menampilkan siapa saja yang sedang login ke sistem",
+    "keywords": ["who", "siapa login", "user login", "logged in"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "who",
+    "beginner_tip": "whoami menampilkan nama user Anda yang sedang aktif"
+  },
+  {
+    "id": "sys-history",
+    "command": "history",
+    "description": "Menampilkan daftar perintah yang pernah dijalankan di terminal",
+    "keywords": ["history", "riwayat", "perintah sebelumnya", "histori terminal"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "history 20",
+    "beginner_tip": "Pada zsh (shell default Mac), ketik history diikuti angka untuk membatasi jumlah output"
+  },
+  {
+    "id": "sys-env",
+    "command": "printenv",
+    "description": "Menampilkan semua variabel lingkungan yang aktif di sesi ini",
+    "keywords": ["env", "environment variable", "variabel lingkungan", "printenv"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "printenv | grep PATH",
+    "beginner_tip": "echo $NAMA_VARIABEL untuk melihat nilai satu variabel saja"
+  },
+  {
+    "id": "cpu-temp",
+    "command": "sysctl -n machdep.xcpm.cpu_thermal_level",
+    "description": "Membaca level termal CPU pada macOS (0 berarti normal, angka lebih tinggi menunjukkan throttling)",
+    "keywords": ["suhu", "panas", "temperatur", "temp", "cpu temp", "thermal"],
+    "category": "Cpu",
+    "risk": "Safe",
+    "example": "sysctl -n machdep.xcpm.cpu_thermal_level",
+    "beginner_tip": "Untuk melihat suhu riil dalam derajat Celsius di macOS, diperlukan tool eksternal seperti 'osx-cpu-temp'"
+  },
+  {
+    "id": "text-wc",
+    "command": "wc -l",
+    "description": "Menghitung jumlah baris dalam sebuah file",
+    "keywords": ["hitung baris", "word count", "wc", "jumlah baris", "berapa baris"],
+    "category": "Text",
+    "risk": "Safe",
+    "example": "wc -l namafile.txt",
+    "beginner_tip": "wc -w untuk menghitung kata, wc -c untuk menghitung karakter"
+  },
+  {
+    "id": "text-tail",
+    "command": "tail -f",
+    "description": "Memantau akhir file secara real-time (berguna untuk log)",
+    "keywords": ["tail", "log", "pantau file", "monitor log", "lihat log"],
+    "category": "Text",
+    "risk": "Safe",
+    "example": "tail -f /var/log/system.log",
+    "beginner_tip": "Tekan Ctrl+C untuk berhenti memantau"
+  },
+  {
+    "id": "text-head",
+    "command": "head -n 20",
+    "description": "Menampilkan 20 baris pertama dari sebuah file",
+    "keywords": ["head", "awal file", "baris pertama", "bagian atas file"],
+    "category": "Text",
+    "risk": "Safe",
+    "example": "head -n 20 namafile.txt",
+    "beginner_tip": "Ubah angka 20 sesuai berapa baris yang ingin ditampilkan"
+  },
+  {
+    "id": "hojicha-info",
+    "command": "",
+    "description": "Hojicha adalah asisten terminal macOS/Linux bertenaga AI yang ramah untuk pemula, dikembangkan oleh pengembang Tea Linux OS. Hojicha membantu menerjemahkan bahasa sehari-hari ke perintah terminal, memantau sistem, mencari file, mengelola folder, dan menghentikan proses secara aman.",
+    "keywords": ["siapa kamu", "kamu siapa", "apa itu hojicha", "tentang hojicha", "siapa dirimu", "bisa apa", "fitur", "kemampuan"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "",
+    "beginner_tip": ""
+  },
+  {
+    "id": "hojicha-greeting",
+    "command": "",
+    "description": "Menyapa pengguna secara ramah dan natural (seperti 'Halo! Ada yang bisa saya bantu hari ini?').",
+    "keywords": ["halo", "hello", "hai", "hi", "apa kabar"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "",
+    "beginner_tip": ""
+  },
+  {
+    "id": "hojicha-help",
+    "command": "hojicha --help",
+    "description": "Menampilkan petunjuk penggunaan dan opsi bantuan untuk asisten terminal Hojicha",
+    "keywords": ["help", "bantuan", "cara pakai", "cara menggunakan", "panduan"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "hojicha --help",
+    "beginner_tip": "Ketik pertanyaan Anda secara langsung dalam bahasa alami untuk mendapatkan bantuan perintah terminal"
+  }
+]

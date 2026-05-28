@@ -46,7 +46,11 @@ impl KnowledgeBase {
     /// to the path so the user can easily modify it, then loads it.
     /// If writing fails, it falls back to the embedded JSON in-memory.
     pub fn load(path: &Path) -> Self {
-        let default_json = include_str!("../data/knowledge_base.json");
+        let default_json = if cfg!(target_os = "macos") {
+            include_str!("../data/knowledge_base_macos.json")
+        } else {
+            include_str!("../data/knowledge_base_linux.json")
+        };
         
         // Try reading from file
         if path.exists() {
