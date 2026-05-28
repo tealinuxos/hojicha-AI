@@ -1,7 +1,8 @@
 use anyhow::{Context, Result};
 use dialoguer::{theme::ColorfulTheme, Select, Input, Password};
 use crate::config::{LlmConfig, LlmType, ApiProvider};
-use crate::rag::{AiClient, NativeModelClient, OllamaClient, OpenAiClient, GeminiClient, AnthropicClient};
+use crate::rag::AiClient;
+use crate::config::llm::providers::{NativeModelClient, OllamaClient, OpenAiClient, GeminiClient, AnthropicClient};
 
 /// Fetch models list from Ollama server
 async fn fetch_ollama_models(base_url: &str) -> Result<Vec<String>> {

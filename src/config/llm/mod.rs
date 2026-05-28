@@ -4,6 +4,7 @@ pub mod openai;
 pub mod gemini;
 pub mod anthropic;
 pub mod wizard;
+pub mod providers;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};

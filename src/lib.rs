@@ -11,7 +11,8 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use executor::execute_command;
-use rag::{AiClient, NativeModelClient, OllamaClient, OpenAiClient, GeminiClient, AnthropicClient, RagPipeline, validate_user_query};
+use rag::{AiClient, RagPipeline, validate_user_query};
+use config::llm::providers::{NativeModelClient, OllamaClient, OpenAiClient, GeminiClient, AnthropicClient};
 use safety::{check_safety, RiskLevel};
 use std::io::{self, Write};
 

@@ -79,7 +79,6 @@ impl GeminiClient {
         let api_key = self.config.api_key.as_ref()
             .context("API Key Gemini tidak ditemukan. Silakan atur lewat menu /model")?;
 
-        // Standard url, or support custom baseUrl
         let base_url = self.config.base_url.as_deref()
             .unwrap_or("https://generativelanguage.googleapis.com");
 
