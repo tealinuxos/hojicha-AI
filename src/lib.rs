@@ -1,10 +1,9 @@
 /// Hojicha-AI: Lightweight AI-powered Linux CLI assistant for beginners.
 /// Hybrid RAG architecture: Intent → Rules → RAG → LLM → Safety → Exec
 
+pub mod config;
 pub mod executor;
-pub mod intent;
 pub mod rag;
-pub mod rules;
 pub mod safety;
 pub mod ui;
 
@@ -12,9 +11,7 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use executor::execute_command;
-use intent::classify;
-use rag::{AiClient, LocalModelClient, OllamaClient, RagPipeline};
-use rules::try_rule_engine;
+use rag::{AiClient, NativeModelClient, OllamaClient, OpenAiClient, GeminiClient, AnthropicClient, RagPipeline};
 use safety::{check_safety, RiskLevel};
 use std::io::{self, Write};
 
@@ -38,9 +35,9 @@ pub struct Cli {
     #[arg(short, long, default_value = "qwen2.5:1.5b")]
     pub model: String,
 
-    /// Gunakan model built-in offline lokal (tanpa memerlukan Ollama)
+    /// Gunakan model built-in offline native (tanpa memerlukan Ollama)
     #[arg(short, long, default_value_t = false)]
-    pub local: bool,
+    pub native: bool,
 
     /// Jangan tampilkan ringkasan output AI (lebih cepat)
     #[arg(long, default_value_t = false)]
@@ -55,27 +52,32 @@ pub struct Cli {
     pub kb_path: Option<String>,
 }
 
-// ─── Path Resolution Helper ───────────────────────────────────────────────────
-
 fn resolve_kb_path(cli_path: Option<&str>) -> std::path::PathBuf {
     if let Some(path_str) = cli_path {
         return std::path::PathBuf::from(path_str);
     }
 
-    // 1. Check if "src/data/knowledge_base.json" exists in the current working directory (e.g. workspace root)
-    let cwd_path = std::path::Path::new("src/data/knowledge_base.json");
+    let suffix = if std::env::consts::OS == "macos" {
+        "macos"
+    } else {
+        "linux"
+    };
+    let filename = format!("knowledge_base_{}.json", suffix);
+
+    // 1. Check in the current working directory
+    let cwd_path = std::path::Path::new("src/data").join(&filename);
     if cwd_path.exists() {
-        return cwd_path.to_path_buf();
+        return cwd_path;
     }
 
-    // 2. Fallback to ~/.config/hojicha/knowledge_base.json
+    // 2. Fallback to ~/.config/hojicha/knowledge_base_<suffix>.json
     if let Ok(home) = std::env::var("HOME") {
         std::path::PathBuf::from(home)
             .join(".config")
             .join("hojicha")
-            .join("knowledge_base.json")
+            .join(&filename)
     } else {
-        std::path::PathBuf::from("src/data/knowledge_base.json")
+        std::path::PathBuf::from("src/data").join(&filename)
     }
 }
 
@@ -86,20 +88,70 @@ pub async fn run(cli: Cli) -> Result<()> {
     // Build RAG pipeline (indexes KB in memory, ~1ms)
     let rag_pipeline = RagPipeline::build(&kb_file_path);
 
-    let mut ai_client = if cli.local {
-        AiClient::Local(LocalModelClient::load_built_in()?)
-    } else {
-        let ollama = OllamaClient::new(&cli.ollama_url, &cli.model);
+    // Load configuration
+    let config = crate::config::LlmConfig::load_or_create()?;
+
+    // Determine whether to use native or API model
+    let force_native = cli.native;
+    let override_ollama = std::env::args().any(|arg| arg == "--ollama-url" || arg == "--model" || arg == "-m");
+
+    let mut ai_client = if force_native {
+        AiClient::Native(NativeModelClient::load_with_config(config.native.clone())?)
+    } else if override_ollama {
+        let ollama_url = if std::env::args().any(|arg| arg == "--ollama-url") {
+            cli.ollama_url.clone()
+        } else {
+            config.ollama.base_url.clone()
+        };
+        let model = if std::env::args().any(|arg| arg.starts_with("-m") || arg == "--model") {
+            cli.model.clone()
+        } else {
+            config.ollama.model.clone()
+        };
+        let ollama = OllamaClient::new(&ollama_url, &model);
         if ollama.ping().await {
             AiClient::Ollama(ollama)
         } else {
             println!(
                 "⚠️  {} {}",
                 "Tidak bisa terhubung ke Ollama.".yellow().bold(),
-                "Mengaktifkan model built-in offline lokal...".yellow()
+                "Mengaktifkan model built-in offline native...".yellow()
             );
             println!();
-            AiClient::Local(LocalModelClient::load_built_in()?)
+            AiClient::Native(NativeModelClient::load_with_config(config.native.clone())?)
+        }
+    } else {
+        match config.active {
+            crate::config::LlmType::Native => {
+                AiClient::Native(NativeModelClient::load_with_config(config.native.clone())?)
+            }
+            crate::config::LlmType::Api => {
+                match config.active_api_provider {
+                    crate::config::ApiProvider::Ollama => {
+                        let ollama = OllamaClient::new(&config.ollama.base_url, &config.ollama.model);
+                        if ollama.ping().await {
+                            AiClient::Ollama(ollama)
+                        } else {
+                            println!(
+                                "⚠️  {} {}",
+                                "Tidak bisa terhubung ke Ollama.".yellow().bold(),
+                                "Mengaktifkan model built-in offline native...".yellow()
+                            );
+                            println!();
+                            AiClient::Native(NativeModelClient::load_with_config(config.native.clone())?)
+                        }
+                    }
+                    crate::config::ApiProvider::Openai => {
+                        AiClient::OpenAi(OpenAiClient::new(config.openai.clone()))
+                    }
+                    crate::config::ApiProvider::Gemini => {
+                        AiClient::Gemini(GeminiClient::new(config.gemini.clone()))
+                    }
+                    crate::config::ApiProvider::Anthropic => {
+                        AiClient::Anthropic(AnthropicClient::new(config.anthropic.clone()))
+                    }
+                }
+            }
         }
     };
 
@@ -141,11 +193,32 @@ async fn run_interactive(
                 format!("(model: {})", ollama.model).dimmed()
             );
         }
-        AiClient::Local(_) => {
+        AiClient::Native(_) => {
             println!(
                 "  {} {}",
-                "model built-in lokal".green().bold(),
+                "Model built-in native".green().bold(),
                 "(SmolLM2-135M · Offline)".dimmed()
+            );
+        }
+        AiClient::OpenAi(openai) => {
+            println!(
+                "  {} {}",
+                "Terhubung ke OpenAI".green().bold(),
+                format!("(model: {})", openai.config.model).dimmed()
+            );
+        }
+        AiClient::Gemini(gemini) => {
+            println!(
+                "  {} {}",
+                "Terhubung ke Gemini".green().bold(),
+                format!("(model: {})", gemini.config.model).dimmed()
+            );
+        }
+        AiClient::Anthropic(anthropic) => {
+            println!(
+                "  {} {}",
+                "Terhubung ke Anthropic".green().bold(),
+                format!("(model: {})", anthropic.config.model).dimmed()
             );
         }
     }
@@ -184,13 +257,8 @@ async fn run_interactive(
                 continue;
             }
             "model" | "/model" => {
-                match ai_client {
-                    AiClient::Ollama(ollama) => {
-                        ui::print_model_info(&ollama.model, &ollama.base_url);
-                    }
-                    AiClient::Local(_) => {
-                        ui::print_model_info("SmolLM2-135M-Instruct (Quantized)", "Embedded (Candle)");
-                    }
+                if let Err(e) = crate::config::run_model_wizard(ai_client).await {
+                    ui::print_error(&format!("Gagal menjalankan konfigurasi model: {}", e));
                 }
                 continue;
             }
@@ -229,22 +297,13 @@ async fn process_query(
     auto_yes: bool,
     _history: &[(String, String)],
 ) -> Result<Option<String>> {
-    // ── Step 1: Intent Classification ───────────────────────────────
-    let intent = classify(user_input);
-
-    // ── Step 2: Rule Engine Fast-Path ───────────────────────────────
-    let cmd_resp = if let Some(rule_resp) = try_rule_engine(&intent, &rag.kb) {
-        // Resolved without LLM — instant response
-        rule_resp
-    } else {
-        // ── Step 3: RAG Pipeline → LLM ──────────────────────────────
-        ui::print_thinking();
-        match rag.run(ai_client, user_input).await {
-            Ok(r) => r,
-            Err(e) => {
-                ui::print_error(&format!("AI error: {}", e));
-                return Ok(None);
-            }
+    // ── Step 1: RAG Pipeline → LLM ──────────────────────────────
+    ui::print_thinking();
+    let cmd_resp = match rag.run(ai_client, user_input).await {
+        Ok(r) => r,
+        Err(e) => {
+            ui::print_error(&format!("AI error: {}", e));
+            return Ok(None);
         }
     };
 
