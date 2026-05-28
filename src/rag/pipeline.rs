@@ -40,15 +40,10 @@ impl RagPipeline {
 
         // 4. Build context from top-3 entries
         let top3: Vec<_> = ranked.into_iter().take(3).collect();
-        let mut context = build_context(&top3);
+        let context = build_context(&top3);
 
         // 5. Append general assistant info to context so the model always has its persona context
-        let info_str = include_str!("../data/general_info.json");
-        if !context.is_empty() {
-            context.push_str("\n\n");
-        }
-        context.push_str("INFORMASI UMUM ASISTEN (Gunakan ini untuk menjawab sapaan/pertanyaan tentang diri Anda secara natural):\n");
-        context.push_str(info_str);
+        // Removed hardcoded general_info.json inclusion to allow greetings and info to be resolved purely via retrieved RAG knowledge base.
 
         // 6. Build RAG-augmented system prompt
         let system = build_rag_system_prompt(&context);
@@ -59,18 +54,9 @@ impl RagPipeline {
     }
 }
 
-/// Simple query rewriter: expands abbreviations and normalizes Indonesian
+/// Simple query rewriter: normalizes case and trims whitespace
 fn rewrite_query(input: &str) -> String {
-    let s = input.to_lowercase();
-    let expanded = s
-        .replace("ram", "ram memori memory")
-        .replace("cpu", "cpu prosesor processor")
-        .replace("disk", "disk penyimpanan storage")
-        .replace("internet", "internet koneksi network ping")
-        .replace("cek", "cek lihat tampilkan")
-        .replace("lihat", "lihat tampilkan list")
-        .replace("hapus", "hapus delete remove");
-    expanded
+    input.to_lowercase().trim().to_string()
 }
 
 fn build_context(entries: &[crate::rag::retriever::RetrievedEntry<'_>]) -> String {

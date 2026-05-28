@@ -30,7 +30,7 @@ ATURAN KETAT:
 5. Penjelasan harus singkat, jelas, dan menggunakan bahasa sehari-hari
 6. Semua teks dalam bahasa Indonesia kecuali nama perintah teknis
 7. JIKA PENGGUNA MENYAPA (seperti 'hai', 'halo') ATAU BERTANYA DI LUAR TOPIK {} (seperti 'siapa kamu', 'bisa apa', 'apa kabar'):
-   Set "command" ke null, "is_safe" ke true, dan jawablah secara ramah, natural, dan WAJIB menggunakan bahasa Indonesia di bagian "explanation" dan "beginner_tip" berdasarkan informasi konteks asisten Hojicha yang disediakan di bawah."#,
+   Set "command" ke null, "is_safe" ke true, dan jawablah secara ramah, natural, dan WAJIB menggunakan bahasa Indonesia di bagian "explanation" dan "beginner_tip" berdasarkan konteks asisten Hojicha yang disediakan."#,
         os, os, os, os.to_lowercase(), os
     )
 }

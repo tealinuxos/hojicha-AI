@@ -57,21 +57,17 @@ impl AiClient {
             Ok(resp) => Ok(resp),
             Err(_) => {
                 let raw_trimmed = raw.trim();
-                let is_conversational = raw_trimmed.starts_with('{') == false 
-                    && (raw_trimmed.to_lowercase().starts_with("hello")
-                        || raw_trimmed.to_lowercase().starts_with("hi")
-                        || raw_trimmed.to_lowercase().starts_with("halo")
-                        || raw_trimmed.to_lowercase().starts_with("hai")
-                        || raw_trimmed.to_lowercase().starts_with("i'm")
-                        || raw_trimmed.to_lowercase().starts_with("i am")
-                        || raw_trimmed.to_lowercase().starts_with("sure")
-                        || raw_trimmed.to_lowercase().starts_with("tentu")
-                        || raw_trimmed.to_lowercase().starts_with("saya")
-                        || raw_trimmed.to_lowercase().starts_with("kamu")
-                        || raw_trimmed.to_lowercase().starts_with("maaf")
-                        || raw_trimmed.to_lowercase().starts_with("tidak")
-                        || raw_trimmed.contains("help you")
-                        || raw_trimmed.contains("bantu"));
+                let is_conversational = !raw_trimmed.starts_with('{') && {
+                    let ends_with_punc = raw_trimmed.ends_with('.') 
+                        || raw_trimmed.ends_with('!') 
+                        || raw_trimmed.ends_with('?');
+                    let contains_sentence_punc = raw_trimmed.contains(". ") 
+                        || raw_trimmed.contains(", ") 
+                        || raw_trimmed.contains("! ") 
+                        || raw_trimmed.contains("? ");
+                    let word_count = raw_trimmed.split_whitespace().count();
+                    ends_with_punc || contains_sentence_punc || word_count > 5
+                };
 
                 if is_conversational {
                     Ok(CommandResponse {
