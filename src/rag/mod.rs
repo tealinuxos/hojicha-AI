@@ -12,6 +12,7 @@ pub mod prompt;
 pub mod reranker;
 pub mod retriever;
 pub mod utils;
+pub mod guard;
 
 pub use client::{AiClient, CommandResponse, OutputSummary};
 pub use native::NativeModelClient;
@@ -21,3 +22,4 @@ pub use gemini::GeminiClient;
 pub use anthropic::AnthropicClient;
 pub use pipeline::RagPipeline;
 pub use prompt::{system_prompt, output_summary_prompt, followup_prompt};
+pub use guard::validate_user_query;

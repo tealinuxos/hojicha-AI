@@ -11,7 +11,7 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use executor::execute_command;
-use rag::{AiClient, NativeModelClient, OllamaClient, OpenAiClient, GeminiClient, AnthropicClient, RagPipeline};
+use rag::{AiClient, NativeModelClient, OllamaClient, OpenAiClient, GeminiClient, AnthropicClient, RagPipeline, validate_user_query};
 use safety::{check_safety, RiskLevel};
 use std::io::{self, Write};
 
@@ -297,6 +297,12 @@ async fn process_query(
     auto_yes: bool,
     _history: &[(String, String)],
 ) -> Result<Option<String>> {
+    // ── Step 0: Validate User Query Safety ───────────────────────
+    if let Err(err_msg) = validate_user_query(user_input) {
+        ui::print_blocked_dangerous(&err_msg);
+        return Ok(None);
+    }
+
     // ── Step 1: RAG Pipeline → LLM ──────────────────────────────
     ui::print_thinking();
     let cmd_resp = match rag.run(ai_client, user_input).await {
