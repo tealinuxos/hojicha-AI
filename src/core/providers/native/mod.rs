@@ -52,7 +52,7 @@ impl NativeModelClient {
 
     pub fn generate_raw(&mut self, system: &str, prompt: &str) -> Result<String> {
         let mut active_model = self.model.clone();
-        let is_cmd_gen = system.contains("FORMAT RESPONS WAJIB") && !system.contains("INFORMASI UMUM ASISTEN");
+        let is_cmd_gen = (system.contains("command") || system.contains("FORMAT RESPONS")) && !system.contains("INFORMASI UMUM ASISTEN");
 
         let formatted_prompt = if is_cmd_gen {
             format!(
@@ -123,7 +123,7 @@ impl NativeModelClient {
             let logits = active_model.forward(&input, pos)?;
             let logits = logits.squeeze(0)?;
 
-            let logits = if generated_tokens.is_empty() {
+            let logits = if generated_tokens.is_empty() || is_cmd_gen {
                 logits
             } else {
                 candle_transformers::utils::apply_repeat_penalty(

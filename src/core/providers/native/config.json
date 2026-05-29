@@ -1,0 +1,11 @@
+{
+  "repo_id": "bartowski/SmolLM2-1.7B-Instruct-GGUF",
+  "filename": "SmolLM2-1.7B-Instruct-Q4_K_M.gguf",
+  "tokenizer_repo": "HuggingFaceTB/SmolLM2-1.7B-Instruct",
+  "tokenizer_filename": "tokenizer.json",
+  "temperature": 0.1,
+  "top_p": 0.9,
+  "max_tokens": 256,
+  "repeat_penalty": 1.05,
+  "repeat_last_n": 64
+}

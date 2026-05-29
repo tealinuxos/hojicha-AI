@@ -330,7 +330,7 @@ pub async fn run_model_wizard(ai_client: &mut AiClient) -> Result<()> {
                             gemini_conf.api_key = Some(key);
                         }
 
-                        let models = vec!["gemini-1.5-flash", "gemini-1.5-pro", "Custom"];
+                        let models = vec!["gemini-2.5-flash", "gemini-2.5-pro", "Custom"];
                         let model_select = Select::with_theme(&theme)
                             .with_prompt("Pilih Model:")
                             .default(0)

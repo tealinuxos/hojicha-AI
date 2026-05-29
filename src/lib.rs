@@ -64,22 +64,7 @@ fn resolve_kb_path(cli_path: Option<&str>) -> std::path::PathBuf {
         "linux"
     };
     let filename = format!("knowledge_base_{}.json", suffix);
-
-    // 1. Check in the current working directory
-    let cwd_path = std::path::Path::new("src/data").join(&filename);
-    if cwd_path.exists() {
-        return cwd_path;
-    }
-
-    // 2. Fallback to ~/.config/hojicha/knowledge_base_<suffix>.json
-    if let Ok(home) = std::env::var("HOME") {
-        std::path::PathBuf::from(home)
-            .join(".config")
-            .join("hojicha")
-            .join(&filename)
-    } else {
-        std::path::PathBuf::from("src/data").join(&filename)
-    }
+    crate::rag::utils::resolve_data_path(&filename)
 }
 
 // ─── Main run function ────────────────────────────────────────────────────────

@@ -9,6 +9,8 @@ struct OllamaRequest {
     prompt: String,
     system: String,
     stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    format: Option<String>,
     options: OllamaOptions,
 }
 
@@ -59,11 +61,15 @@ impl OllamaClient {
     }
 
     pub async fn generate_raw(&self, system: &str, prompt: &str) -> Result<String> {
+        let is_json = system.contains("JSON") || system.contains("command") || system.contains("FORMAT RESPONS");
+        let format = if is_json { Some("json".to_string()) } else { None };
+
         let request = OllamaRequest {
             model: self.model.clone(),
             prompt: prompt.to_string(),
             system: system.to_string(),
             stream: false,
+            format,
             options: OllamaOptions {
                 temperature: 0.1,
                 num_predict: 2048,

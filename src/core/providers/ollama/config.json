@@ -1,0 +1,12 @@
+{
+  "base_url": "http://localhost:11434",
+  "model": "qwen2.5:1.5b",
+  "temperature": 0.1,
+  "max_tokens": 2048,
+  "top_p": null,
+  "top_k": null,
+  "num_ctx": 8192,
+  "repeat_penalty": null,
+  "timeout": 30,
+  "max_retries": 3
+}

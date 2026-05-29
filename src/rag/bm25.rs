@@ -102,9 +102,17 @@ fn entry_to_text(entry: &KbEntry) -> String {
 
 /// Simple whitespace + punctuation tokenizer with Indonesian stemming hints
 pub fn tokenize(text: &str) -> Vec<String> {
+    let stop_words: std::collections::HashSet<&str> = [
+        "saya", "aku", "kamu", "dia", "mereka", "kita", "kami",
+        "yang", "dan", "di", "ke", "dari", "untuk", "dengan", "pada", "adalah", "itu", "ini", "bisa", "ada",
+        "yaitu", "yakni", "seperti", "atau", "bahwa", "oleh",
+        "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "with", "by", "of", "about",
+        "is", "are", "was", "were", "be", "been", "have", "has", "had", "this", "that", "i", "you", "my", "your"
+    ].iter().cloned().collect();
+
     text.to_lowercase()
         .split(|c: char| !c.is_alphanumeric())
-        .filter(|s| s.len() > 1)
+        .filter(|s| s.len() > 1 && !stop_words.contains(s))
         .map(|s| s.to_string())
         .collect()
 }

@@ -1,0 +1,14 @@
+{
+  "base_url": null,
+  "api_key": null,
+  "model": "gpt-4o-mini",
+  "temperature": 0.2,
+  "max_tokens": 2048,
+  "organization": null,
+  "project": null,
+  "top_p": null,
+  "presence_penalty": null,
+  "frequency_penalty": null,
+  "timeout": 30,
+  "max_retries": 3
+}

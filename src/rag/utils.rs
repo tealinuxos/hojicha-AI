@@ -87,9 +87,19 @@ pub fn clean_json_newlines(json_str: &str) -> String {
 pub fn clean_raw_command(raw: &str) -> String {
     let trimmed = raw.trim();
     if let Some(start) = trimmed.find("\"command\":") {
-        let rest = &trimmed[start + 10..];
-        if let Some(val_start) = rest.find('"') {
-            let val_rest = &rest[val_start + 1..];
+        let rest = trimmed[start + 10..].trim();
+        let rest_after_colon = if rest.starts_with(':') {
+            rest[1..].trim()
+        } else {
+            rest
+        };
+
+        if rest_after_colon.starts_with("null") {
+            return String::new();
+        }
+
+        if let Some(val_start) = rest_after_colon.find('"') {
+            let val_rest = &rest_after_colon[val_start + 1..];
             if let Some(val_end) = val_rest.find('"') {
                 return val_rest[..val_end].to_string();
             }
@@ -113,3 +123,20 @@ pub fn clean_raw_command(raw: &str) -> String {
     }
     trimmed.to_string()
 }
+
+pub fn resolve_data_path(filename: &str) -> std::path::PathBuf {
+    let cwd_path = std::path::Path::new("src/data").join(filename);
+    if cwd_path.exists() {
+        return cwd_path;
+    }
+
+    if let Ok(home) = std::env::var("HOME") {
+        std::path::PathBuf::from(home)
+            .join(".config")
+            .join("hojicha")
+            .join(filename)
+    } else {
+        std::path::PathBuf::from("src/data").join(filename)
+    }
+}
+

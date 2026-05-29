@@ -25,18 +25,7 @@ pub struct NativeConfig {
 
 impl Default for NativeConfig {
     fn default() -> Self {
-        Self {
-            repo_id: "bartowski/SmolLM2-135M-Instruct-GGUF".to_string(),
-            filename: "SmolLM2-135M-Instruct-Q4_K_M.gguf".to_string(),
-            tokenizer_repo: "HuggingFaceTB/SmolLM2-135M-Instruct".to_string(),
-            tokenizer_filename: "tokenizer.json".to_string(),
-            temperature: 0.3,
-            top_p: 0.95,
-            max_tokens: 800,
-            repeat_penalty: Some(1.1),
-            repeat_last_n: Some(64),
-            cpu_threads: None,
-        }
+        load_provider_config("native", include_str!("providers/native/config.json"))
     }
 }
 
@@ -63,18 +52,7 @@ pub struct OllamaConfig {
 
 impl Default for OllamaConfig {
     fn default() -> Self {
-        Self {
-            base_url: "http://localhost:11434".to_string(),
-            model: "qwen2.5:1.5b".to_string(),
-            temperature: 0.1,
-            max_tokens: 2048,
-            top_p: None,
-            top_k: None,
-            num_ctx: Some(8192),
-            repeat_penalty: None,
-            timeout: Some(30),
-            max_retries: Some(3),
-        }
+        load_provider_config("ollama", include_str!("providers/ollama/config.json"))
     }
 }
 
@@ -103,20 +81,7 @@ pub struct OpenAiConfig {
 
 impl Default for OpenAiConfig {
     fn default() -> Self {
-        Self {
-            base_url: None,
-            api_key: None,
-            model: "gpt-4o-mini".to_string(),
-            temperature: 0.2,
-            max_tokens: 2048,
-            organization: None,
-            project: None,
-            top_p: None,
-            presence_penalty: None,
-            frequency_penalty: None,
-            timeout: Some(30),
-            max_retries: Some(3),
-        }
+        load_provider_config("openai", include_str!("providers/openai/config.json"))
     }
 }
 
@@ -141,17 +106,7 @@ pub struct GeminiConfig {
 
 impl Default for GeminiConfig {
     fn default() -> Self {
-        Self {
-            api_key: None,
-            model: "gemini-1.5-flash".to_string(),
-            temperature: 0.2,
-            max_tokens: 2048,
-            base_url: None,
-            top_p: None,
-            top_k: None,
-            timeout: Some(30),
-            max_retries: Some(3),
-        }
+        load_provider_config("gemini", include_str!("providers/gemini/config.json"))
     }
 }
 
@@ -176,17 +131,7 @@ pub struct AnthropicConfig {
 
 impl Default for AnthropicConfig {
     fn default() -> Self {
-        Self {
-            api_key: None,
-            model: "claude-3-5-sonnet-latest".to_string(),
-            temperature: 0.2,
-            max_tokens: 2048,
-            base_url: None,
-            top_p: None,
-            top_k: None,
-            timeout: Some(30),
-            max_retries: Some(3),
-        }
+        load_provider_config("anthropic", include_str!("providers/anthropic/config.json"))
     }
 }
 
@@ -277,4 +222,31 @@ impl LlmConfig {
             .context("Gagal menulis file konfigurasi LLM")?;
         Ok(())
     }
+}
+
+/// Helper function to load provider config with override support
+fn load_provider_config<T>(provider_name: &str, embedded_json: &str) -> T
+where
+    T: serde::de::DeserializeOwned,
+{
+    // 1. Coba muat dari ~/.config/hojicha/providers/<provider_name>/config.json (runtime override)
+    if let Ok(home) = std::env::var("HOME") {
+        let path = std::path::PathBuf::from(home)
+            .join(".config")
+            .join("hojicha")
+            .join("providers")
+            .join(provider_name)
+            .join("config.json");
+        if path.exists() {
+            if let Ok(content) = fs::read_to_string(&path) {
+                if let Ok(config) = serde_json::from_str(&content) {
+                    return config;
+                }
+            }
+        }
+    }
+
+    // 2. Gunakan fallback json bawaan yang tertanam (embedded) saat kompilasi
+    serde_json::from_str(embedded_json)
+        .unwrap_or_else(|e| panic!("Gagal mengurai embedded config untuk provider '{}': {}", provider_name, e))
 }

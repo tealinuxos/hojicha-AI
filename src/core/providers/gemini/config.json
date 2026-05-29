@@ -1,0 +1,11 @@
+{
+  "api_key": null,
+  "model": "gemini-2.5-flash",
+  "temperature": 0.2,
+  "max_tokens": 2048,
+  "base_url": null,
+  "top_p": null,
+  "top_k": null,
+  "timeout": 30,
+  "max_retries": 3
+}
