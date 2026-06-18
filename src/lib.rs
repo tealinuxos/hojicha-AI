@@ -9,7 +9,7 @@ pub mod safety;
 pub mod ui;
 
 use ai::{AiClient, LocalModelClient, OllamaClient, OpenAiClient};
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use executor::execute_command;
@@ -25,7 +25,7 @@ use std::io::{self, Write};
 #[command(name = "hojicha")]
 #[command(version = "0.1.0")]
 #[command(about = "Asisten Terminal Linux bertenaga AI untuk Pemula", long_about = None)]
-#[command(after_help = "Contoh: hojicha \"cek ram laptop saya\"")]
+#[command(after_help = "Contoh:\n  hojicha \"cek ram laptop saya\"\n  hojicha --opencode http://127.0.0.1:20128/v1 \"hello\"\n  hojicha --opencode http://127.0.0.1:20128/v1 model-name \"hello\"")]
 pub struct Cli {
     /// Pertanyaan atau perintah dalam bahasa alami (opsional - tanpa argumen masuk mode interaktif)
     pub query: Option<String>,
@@ -42,9 +42,9 @@ pub struct Cli {
     #[arg(short, long, default_value_t = false)]
     pub local: bool,
 
-    /// Gunakan konfigurasi dari ~/.config/opencode/opencode.json (9router)
-    #[arg(long, default_value_t = true)]
-    pub opencode: bool,
+    /// Gunakan OpenAI-compatible API: --opencode <URL> [MODEL_NAME]
+    #[arg(long, num_args = 1..=2)]
+    pub opencode: Option<Vec<String>>,
 
     /// Jangan tampilkan ringkasan output AI (lebih cepat)
     #[arg(long, default_value_t = false)]
@@ -61,37 +61,21 @@ pub async fn run(cli: Cli) -> Result<()> {
     let mut ai_client = if cli.local {
         // Force loading local built-in model
         AiClient::Local(LocalModelClient::load_built_in()?)
-    } else if cli.opencode {
-        // Attempt to load from opencode.json
-        // If the model name is the default or not specified, use the default from config
-        let target_model = if cli.model == "qwen2.5:1.5b" {
-            None
+    } else if let Some(opencode_args) = cli.opencode {
+        // Use OpenAI-compatible API with provided URL
+        let base_url = opencode_args[0].clone();
+        let api_key = load_opencode_api_key().unwrap_or_default();
+        let model = if opencode_args.len() > 1 {
+            // Model name provided as second argument
+            opencode_args[1].clone()
+        } else if cli.model != "qwen2.5:1.5b" {
+            // Use --model flag if explicitly set
+            cli.model.clone()
         } else {
-            Some(cli.model.clone())
+            // Use default model from opencode config if available
+            load_opencode_model().unwrap_or(cli.model.clone())
         };
-
-        match load_opencode_config(target_model) {
-            Ok((base_url, api_key, model)) => {
-                AiClient::OpenAi(OpenAiClient::new(&base_url, &api_key, &model))
-            }
-            Err(e) => {
-                if cli.model != "qwen2.5:1.5b" {
-                    println!("⚠️  {}: {}", "Gagal memuat model dari opencode".red(), e);
-                }
-                // Fallback to Ollama if opencode.json is not found or invalid
-                let ollama = OllamaClient::new(&cli.ollama_url, &cli.model);
-                if ollama.ping().await {
-                    AiClient::Ollama(ollama)
-                } else {
-                    println!(
-                        "⚠️  {} {}",
-                        "Gagal memuat konfigurasi opencode dan tidak bisa terhubung ke Ollama.".yellow().bold(),
-                        "Mengaktifkan model built-in offline lokal...".yellow()
-                    );
-                    AiClient::Local(LocalModelClient::load_built_in()?)
-                }
-            }
-        }
+        AiClient::OpenAi(OpenAiClient::new(&base_url, &api_key, &model))
     } else {
         // Attempt to connect to Ollama. If it fails, fallback to local model.
         let ollama = OllamaClient::new(&cli.ollama_url, &cli.model);
@@ -117,38 +101,37 @@ pub async fn run(cli: Cli) -> Result<()> {
     run_interactive(&mut ai_client, cli.no_summary, cli.yes).await
 }
 
-fn load_opencode_config(requested_model: Option<String>) -> Result<(String, String, String)> {
-    let home = std::env::var("HOME").context("HOME env var not set")?;
+fn load_opencode_api_key() -> Option<String> {
+    let home = std::env::var("HOME").ok()?;
     let config_path = std::path::PathBuf::from(home)
         .join(".config/opencode/opencode.json");
+    let content = std::fs::read_to_string(config_path).ok()?;
+    let v: Value = serde_json::from_str(&content).ok()?;
     
-    let content = std::fs::read_to_string(config_path)?;
-    let v: Value = serde_json::from_str(&content)?;
+    // Try to find apiKey from any provider
+    let provider = v["provider"].as_object()?;
+    for (_, provider_config) in provider {
+        if let Some(api_key) = provider_config["options"]["apiKey"].as_str() {
+            return Some(api_key.to_string());
+        }
+    }
+    None
+}
+
+fn load_opencode_model() -> Option<String> {
+    let home = std::env::var("HOME").ok()?;
+    let config_path = std::path::PathBuf::from(home)
+        .join(".config/opencode/opencode.json");
+    let content = std::fs::read_to_string(config_path).ok()?;
+    let v: Value = serde_json::from_str(&content).ok()?;
+    let model = v["model"].as_str()?.to_string();
     
-    let model = if let Some(m) = requested_model {
-        m
+    // Strip provider prefix: "provider/model-name" -> "model-name"
+    if model.contains('/') {
+        Some(model[model.find('/').unwrap() + 1..].to_string())
     } else {
-        v["model"].as_str().context("model not found in config")?.to_string()
-    };
-    
-    // Parse provider name. 
-    // Format is usually "provider/model-path" or just "model-name"
-    let provider_name = if model.contains('/') {
-        model.split('/').next().unwrap()
-    } else {
-        // Default to the first provider or a specific logic if no / is present
-        v["provider"].as_object()
-            .and_then(|p| p.keys().next())
-            .context("No provider found in config")?
-    };
-    
-    let provider_opt = &v["provider"][provider_name]["options"];
-    let base_url = provider_opt["baseURL"].as_str()
-        .context(format!("baseURL not found for provider: {}", provider_name))?.to_string();
-    let api_key = provider_opt["apiKey"].as_str()
-        .context(format!("apiKey not found for provider: {}", provider_name))?.to_string();
-    
-    Ok((base_url, api_key, model))
+        Some(model)
+    }
 }
 
 // ─── Single Query Mode ────────────────────────────────────────────────────────

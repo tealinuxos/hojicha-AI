@@ -71,6 +71,7 @@ struct OpenAiRequest {
     model: String,
     messages: Vec<OpenAiMessage>,
     temperature: f32,
+    stream: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -143,6 +144,7 @@ impl OpenAiClient {
                 },
             ],
             temperature: 0.1,
+            stream: false,
         };
 
         let response: OpenAiResponse = self
