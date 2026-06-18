@@ -64,14 +64,109 @@ pub struct OutputSummary {
     pub next_suggestion: Option<String>,
 }
 
+// ─── OpenAI API types ────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+struct OpenAiRequest {
+    model: String,
+    messages: Vec<OpenAiMessage>,
+    temperature: f32,
+}
+
+#[derive(Debug, Serialize)]
+struct OpenAiMessage {
+    role: String,
+    content: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAiResponse {
+    choices: Vec<OpenAiChoice>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAiChoice {
+    message: OpenAiMessageResponse,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAiMessageResponse {
+    content: String,
+}
+
 // ─── Client variant ──────────────────────────────────────────────────────────
 
 pub enum AiClient {
     Ollama(OllamaClient),
+    OpenAi(OpenAiClient),
     Local(LocalModelClient),
 }
 
 // ─── Ollama client implementation ────────────────────────────────────────────
+// ... (existing OllamaClient)
+
+// ─── OpenAI client implementation ────────────────────────────────────────────
+
+pub struct OpenAiClient {
+    client: Client,
+    pub base_url: String,
+    pub api_key: String,
+    pub model: String,
+}
+
+impl OpenAiClient {
+    pub fn new(base_url: &str, api_key: &str, model: &str) -> Self {
+        let client = Client::builder()
+            .timeout(Duration::from_secs(60))
+            .build()
+            .expect("Failed to build HTTP client");
+
+        Self {
+            client,
+            base_url: base_url.to_string(),
+            api_key: api_key.to_string(),
+            model: model.to_string(),
+        }
+    }
+
+    pub async fn generate_raw(&self, system: &str, prompt: &str) -> Result<String> {
+        let request = OpenAiRequest {
+            model: self.model.clone(),
+            messages: vec![
+                OpenAiMessage {
+                    role: "system".to_string(),
+                    content: system.to_string(),
+                },
+                OpenAiMessage {
+                    role: "user".to_string(),
+                    content: prompt.to_string(),
+                },
+            ],
+            temperature: 0.1,
+        };
+
+        let response: OpenAiResponse = self
+            .client
+            .post(&format!("{}/chat/completions", self.base_url))
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .json(&request)
+            .send()
+            .await
+            .context("Gagal menghubungi OpenAI compatible API.")?
+            .json()
+            .await
+            .context("Gagal membaca respons dari OpenAI compatible API")?;
+
+        let content = response
+            .choices
+            .get(0)
+            .map(|c| c.message.content.clone())
+            .unwrap_or_default();
+
+        Ok(content.trim().to_string())
+    }
+}
+
 
 pub struct OllamaClient {
     client: Client,
@@ -371,6 +466,7 @@ impl AiClient {
     ) -> Result<CommandResponse> {
         let raw = match self {
             Self::Ollama(ollama) => ollama.generate_raw(system_prompt, user_input).await?,
+            Self::OpenAi(openai) => openai.generate_raw(system_prompt, user_input).await?,
             Self::Local(local) => {
                 let sys = system_prompt.to_string();
                 let usr = user_input.to_string();
@@ -404,6 +500,7 @@ impl AiClient {
     ) -> Result<OutputSummary> {
         let raw = match self {
             Self::Ollama(ollama) => ollama.generate_raw(system_prompt, summary_prompt).await?,
+            Self::OpenAi(openai) => openai.generate_raw(system_prompt, summary_prompt).await?,
             Self::Local(local) => {
                 let sys = system_prompt.to_string();
                 let sum = summary_prompt.to_string();

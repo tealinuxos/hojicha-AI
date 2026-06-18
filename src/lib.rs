@@ -8,13 +8,14 @@ pub mod prompt;
 pub mod safety;
 pub mod ui;
 
-use ai::{AiClient, LocalModelClient, OllamaClient};
-use anyhow::Result;
+use ai::{AiClient, LocalModelClient, OllamaClient, OpenAiClient};
+use anyhow::{Context, Result};
 use clap::Parser;
 use colored::Colorize;
 use executor::execute_command;
 use prompt::system_prompt;
 use safety::{check_safety, RiskLevel};
+use serde_json::Value;
 use std::io::{self, Write};
 
 // ─── CLI Definition ───────────────────────────────────────────────────────────
@@ -41,6 +42,10 @@ pub struct Cli {
     #[arg(short, long, default_value_t = false)]
     pub local: bool,
 
+    /// Gunakan konfigurasi dari ~/.config/opencode/opencode.json (9router)
+    #[arg(long, default_value_t = true)]
+    pub opencode: bool,
+
     /// Jangan tampilkan ringkasan output AI (lebih cepat)
     #[arg(long, default_value_t = false)]
     pub no_summary: bool,
@@ -56,6 +61,37 @@ pub async fn run(cli: Cli) -> Result<()> {
     let mut ai_client = if cli.local {
         // Force loading local built-in model
         AiClient::Local(LocalModelClient::load_built_in()?)
+    } else if cli.opencode {
+        // Attempt to load from opencode.json
+        // If the model name is the default or not specified, use the default from config
+        let target_model = if cli.model == "qwen2.5:1.5b" {
+            None
+        } else {
+            Some(cli.model.clone())
+        };
+
+        match load_opencode_config(target_model) {
+            Ok((base_url, api_key, model)) => {
+                AiClient::OpenAi(OpenAiClient::new(&base_url, &api_key, &model))
+            }
+            Err(e) => {
+                if cli.model != "qwen2.5:1.5b" {
+                    println!("⚠️  {}: {}", "Gagal memuat model dari opencode".red(), e);
+                }
+                // Fallback to Ollama if opencode.json is not found or invalid
+                let ollama = OllamaClient::new(&cli.ollama_url, &cli.model);
+                if ollama.ping().await {
+                    AiClient::Ollama(ollama)
+                } else {
+                    println!(
+                        "⚠️  {} {}",
+                        "Gagal memuat konfigurasi opencode dan tidak bisa terhubung ke Ollama.".yellow().bold(),
+                        "Mengaktifkan model built-in offline lokal...".yellow()
+                    );
+                    AiClient::Local(LocalModelClient::load_built_in()?)
+                }
+            }
+        }
     } else {
         // Attempt to connect to Ollama. If it fails, fallback to local model.
         let ollama = OllamaClient::new(&cli.ollama_url, &cli.model);
@@ -79,6 +115,40 @@ pub async fn run(cli: Cli) -> Result<()> {
 
     // Interactive REPL mode
     run_interactive(&mut ai_client, cli.no_summary, cli.yes).await
+}
+
+fn load_opencode_config(requested_model: Option<String>) -> Result<(String, String, String)> {
+    let home = std::env::var("HOME").context("HOME env var not set")?;
+    let config_path = std::path::PathBuf::from(home)
+        .join(".config/opencode/opencode.json");
+    
+    let content = std::fs::read_to_string(config_path)?;
+    let v: Value = serde_json::from_str(&content)?;
+    
+    let model = if let Some(m) = requested_model {
+        m
+    } else {
+        v["model"].as_str().context("model not found in config")?.to_string()
+    };
+    
+    // Parse provider name. 
+    // Format is usually "provider/model-path" or just "model-name"
+    let provider_name = if model.contains('/') {
+        model.split('/').next().unwrap()
+    } else {
+        // Default to the first provider or a specific logic if no / is present
+        v["provider"].as_object()
+            .and_then(|p| p.keys().next())
+            .context("No provider found in config")?
+    };
+    
+    let provider_opt = &v["provider"][provider_name]["options"];
+    let base_url = provider_opt["baseURL"].as_str()
+        .context(format!("baseURL not found for provider: {}", provider_name))?.to_string();
+    let api_key = provider_opt["apiKey"].as_str()
+        .context(format!("apiKey not found for provider: {}", provider_name))?.to_string();
+    
+    Ok((base_url, api_key, model))
 }
 
 // ─── Single Query Mode ────────────────────────────────────────────────────────
@@ -108,6 +178,13 @@ async fn run_interactive(
                 "  {} {}",
                 "Terhubung ke Ollama".green().bold(),
                 format!("(model: {})", ollama.model).dimmed()
+            );
+        }
+        AiClient::OpenAi(openai) => {
+            println!(
+                "  {} {}",
+                "Terhubung ke OpenCode (9router)".green().bold(),
+                format!("(model: {})", openai.model).dimmed()
             );
         }
         AiClient::Local(_) => {
@@ -157,6 +234,9 @@ async fn run_interactive(
                 match ai_client {
                     AiClient::Ollama(ollama) => {
                         ui::print_model_info(&ollama.model, &ollama.base_url);
+                    }
+                    AiClient::OpenAi(openai) => {
+                        ui::print_model_info(&openai.model, &openai.base_url);
                     }
                     AiClient::Local(_) => {
                         ui::print_model_info("SmolLM2-135M-Instruct (Quantized)", "Embedded (Candle)");
