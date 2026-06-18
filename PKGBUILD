@@ -18,6 +18,7 @@ pkgver() {
 }
 
 build() {
+	CFLAGS+=' -ffat-lto-objects'
   cd "$srcdir/hojicha-AI"
   export RUSTUP_TOOLCHAIN=stable
   export CARGO_TARGET_DIR=target
