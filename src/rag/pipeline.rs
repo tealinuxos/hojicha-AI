@@ -188,10 +188,20 @@ impl RagPipeline {
         } else {
             let mut input_with_history = String::new();
             // Include last 5 turns of conversation history
+            // SECURITY: Sanitize history entries to prevent prompt injection.
+            // Strip newlines and control characters that could manipulate the prompt.
             for (user_msg, assistant_msg) in history.iter().rev().take(5).rev() {
+                let safe_user = user_msg.chars()
+                    .filter(|c| !c.is_control() || *c == ' ')
+                    .take(500)  // Limit length to prevent prompt overflow
+                    .collect::<String>();
+                let safe_assistant = assistant_msg.chars()
+                    .filter(|c| !c.is_control() || *c == ' ')
+                    .take(500)
+                    .collect::<String>();
                 input_with_history.push_str(&format!(
                     "[Previous] User: {}\n[Previous] Assistant: {}\n\n",
-                    user_msg, assistant_msg
+                    safe_user, safe_assistant
                 ));
             }
             input_with_history.push_str(&format!("[Current] User: {}", user_input));
