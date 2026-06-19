@@ -18,16 +18,16 @@ pub struct LocalModelClient {
 // ChatML special tokens constructed via hex escapes to avoid shell/tool interpretation.
 // These are the exact strings used by Qwen2.5-0.5B-Instruct's ChatML format.
 fn chatml_sys_start() -> String {
-    format!("{}system", "<\x7cim_start\x7e>")
+    format!("{}system", "<\x7cim_start\x7c>")
 }
 fn chatml_user_start() -> String {
-    format!("{}user", "<\x7cim_start\x7e>")
+    format!("{}user", "<\x7cim_start\x7c>")
 }
 fn chatml_asst_start() -> String {
-    format!("{}assistant", "<\x7cim_start\x7e>")
+    format!("{}assistant", "<\x7cim_start\x7c>")
 }
 fn chatml_end() -> String {
-    "<\x7cim_end\x7e>".to_string()
+    "<\x7cim_end\x7c>".to_string()
 }
 
 impl LocalModelClient {
