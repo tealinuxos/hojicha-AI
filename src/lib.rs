@@ -14,6 +14,7 @@ use rag::{AiClient, LocalModelClient, RagPipeline};
 use safety::{check_safety, RiskLevel};
 use serde_json::Value;
 use std::io::{self, Write};
+use std::path::Path;
 
 // ─── CLI Definition ───────────────────────────────────────────────────────────
 
@@ -306,6 +307,23 @@ async fn run_interactive(
             _ => {}
         }
 
+        // /find <nama> — search file/folder tanpa lewat AI
+        if input.starts_with("/find ") || input.starts_with("find ") {
+            let query = input
+                .trim_start_matches("/find ")
+                .trim_start_matches("find ")
+                .trim()
+                .to_string();
+            if query.is_empty() {
+                ui::print_error("Penggunaan: /find <nama_file_atau_folder>");
+            } else {
+                let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("/"));
+                let results = find_files(&cwd, &query, 8, 200);
+                ui::print_search_results(&query, &results);
+            }
+            continue;
+        }
+
         match process_query(ai_client, rag, &input, no_summary, auto_yes, &history).await {
             Ok(Some(response_json)) => {
                 history.push((input, response_json));
@@ -423,4 +441,64 @@ async fn process_query(
         cmd_resp.explanation
     );
     Ok(Some(history_entry))
+}
+
+// ─── File Search ──────────────────────────────────────────────────────────────
+
+/// Rekursif cari file/folder yang namanya mengandung `query` (case-insensitive).
+/// - `max_depth`: batas kedalaman direktori (default 8)
+/// - `max_results`: batas jumlah hasil (default 200)
+/// Direktori seperti `.git`, `node_modules`, `target` dilewati.
+pub fn find_files(root: &Path, query: &str, max_depth: usize, max_results: usize) -> Vec<String> {
+    let query_lower = query.to_lowercase();
+    let mut results = Vec::new();
+    find_recursive(root, &query_lower, 0, max_depth, max_results, &mut results);
+    results
+}
+
+fn find_recursive(
+    dir: &Path,
+    query: &str,
+    depth: usize,
+    max_depth: usize,
+    max_results: usize,
+    results: &mut Vec<String>,
+) {
+    if depth > max_depth || results.len() >= max_results {
+        return;
+    }
+
+    let skip_dirs = ["target", ".git", "node_modules", ".cache", "__pycache__", ".cargo"];
+
+    let entries = match std::fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+
+    for entry in entries.flatten() {
+        if results.len() >= max_results {
+            break;
+        }
+
+        let path = entry.path();
+        let name = match path.file_name().and_then(|n| n.to_str()) {
+            Some(n) => n.to_string(),
+            None => continue,
+        };
+
+        // Skip direktori berat
+        if path.is_dir() && skip_dirs.contains(&name.as_str()) {
+            continue;
+        }
+
+        // Cocokkan nama (case-insensitive, partial match)
+        if name.to_lowercase().contains(query) {
+            results.push(path.display().to_string());
+        }
+
+        // Rekursi ke subdirektori
+        if path.is_dir() {
+            find_recursive(&path, query, depth + 1, max_depth, max_results, results);
+        }
+    }
 }
