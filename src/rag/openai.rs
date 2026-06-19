@@ -94,6 +94,17 @@ impl OpenAiClient {
             .as_deref()
             .unwrap_or(self.default_base_url);
 
+        // SECURITY: Enforce HTTPS for API connections to prevent API key exposure.
+        // Allow HTTP only for localhost (local development with Ollama, etc.)
+        let is_localhost = base_url.contains("localhost") || base_url.contains("127.0.0.1");
+        if !is_localhost && !base_url.starts_with("https://") {
+            anyhow::bail!(
+                "Base URL '{}' harus menggunakan HTTPS untuk melindungi API key Anda. \
+                 Gunakan HTTPS atau localhost untuk development.",
+                base_url
+            );
+        }
+
         let url = format!("{}/chat/completions", base_url.trim_end_matches('/'));
 
         let request = OpenAiRequest {
