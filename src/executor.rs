@@ -21,16 +21,49 @@ pub fn execute_command(command: &str) -> Result<CommandOutput> {
     // Persistent directory navigation (cd handling)
     let trimmed = command.trim();
     if trimmed == "cd" || trimmed.starts_with("cd ") {
+        let is_compound = trimmed.contains(';') || trimmed.contains('&') || trimmed.contains('|');
         let first_cmd = trimmed.split(|c| c == ';' || c == '&' || c == '|').next().unwrap_or(trimmed).trim();
+        
+        let mut cd_success = false;
+        let mut err_msg = String::new();
+
         if first_cmd == "cd" {
             if let Ok(home) = std::env::var("HOME") {
-                let _ = std::env::set_current_dir(&home);
+                if let Err(e) = std::env::set_current_dir(&home) {
+                    err_msg = format!("cd: {}", e);
+                } else {
+                    cd_success = true;
+                }
+            } else {
+                err_msg = "cd: HOME environment variable not set".to_string();
             }
         } else if first_cmd.starts_with("cd ") {
             let path_str = first_cmd[3..].trim();
             let path_str = path_str.trim_matches(|c| c == '"' || c == '\'');
-            if std::path::Path::new(path_str).is_dir() {
-                let _ = std::env::set_current_dir(path_str);
+            let path = std::path::Path::new(path_str);
+            if let Err(e) = std::env::set_current_dir(path) {
+                err_msg = format!("cd: {}: {}", path_str, e);
+            } else {
+                cd_success = true;
+            }
+        }
+
+        // If it's a simple cd command (not compound), return immediately
+        if !is_compound {
+            if cd_success {
+                return Ok(CommandOutput {
+                    stdout: String::new(),
+                    stderr: String::new(),
+                    exit_code: 0,
+                    success: true,
+                });
+            } else {
+                return Ok(CommandOutput {
+                    stdout: String::new(),
+                    stderr: err_msg,
+                    exit_code: 1,
+                    success: false,
+                });
             }
         }
     }

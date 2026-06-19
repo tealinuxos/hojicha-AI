@@ -9,6 +9,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use colored::Colorize;
 
 use self::gemini::GeminiConfig;
 use self::groq::GroqConfig;
@@ -113,8 +114,15 @@ impl LlmConfig {
         }
 
         let content = fs::read_to_string(&path).context("Gagal membaca file konfigurasi LLM")?;
-        let config: LlmConfig = serde_json::from_str(&content)
-            .context("Gagal mengurai file konfigurasi LLM (JSON tidak valid)")?;
+        let config: LlmConfig = match serde_json::from_str(&content) {
+            Ok(c) => c,
+            Err(_) => {
+                eprintln!("{}", "⚠️  Peringatan: File konfigurasi LLM rusak atau tidak kompatibel. Mengatur ulang ke default...".yellow());
+                let default_config = Self::default();
+                let _ = default_config.save();
+                default_config
+            }
+        };
         Ok(config)
     }
 
