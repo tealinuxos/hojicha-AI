@@ -7,6 +7,7 @@ use anyhow::{Context, Result};
 pub enum Category {
     Memory,
     Cpu,
+    Hardware,
     Disk,
     Network,
     Process,
@@ -126,5 +127,21 @@ impl KnowledgeBase {
         let entries = serde_json::from_reader(reader)
             .with_context(|| format!("Failed to parse JSON from {:?}", path))?;
         Ok(Self { entries })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::KbEntry;
+
+    #[test]
+    fn embedded_knowledge_bases_are_valid() {
+        let linux = include_str!("../data/knowledge_base_linux.json");
+        let macos = include_str!("../data/knowledge_base_macos.json");
+
+        serde_json::from_str::<Vec<KbEntry>>(linux)
+            .expect("embedded Linux knowledge base should be valid");
+        serde_json::from_str::<Vec<KbEntry>>(macos)
+            .expect("embedded macOS knowledge base should be valid");
     }
 }
