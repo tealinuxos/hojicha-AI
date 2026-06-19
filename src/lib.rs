@@ -307,8 +307,13 @@ async fn run_interactive(
             _ => {}
         }
 
-        // /find [scope] <nama> — search file/folder tanpa lewat AI
-        // Scope: default = ~  |  /find / <nama> = seluruh laptop  |  /find . <nama> = CWD saja
+        // /find [folder|file] [/|.] <nama> — search tanpa lewat AI
+        // Contoh:
+        //   /find undip             → cari folder & file bernama undip di Home
+        //   /find folder undip      → hanya folder
+        //   /find file config.json  → hanya file
+        //   /find / undip           → cari di seluruh laptop
+        //   /find folder / undip    → hanya folder, seluruh laptop
         if input.starts_with("/find") || (input.starts_with("find ") && !input.contains("=")) {
             let args = input
                 .trim_start_matches("/find")
@@ -317,39 +322,64 @@ async fn run_interactive(
                 .to_string();
 
             if args.is_empty() {
-                ui::print_error("Penggunaan:");
-                println!("    /find <nama>          → cari di folder Home (~)");
-                println!("    /find / <nama>        → cari di seluruh laptop (/)");
-                println!("    /find . <nama>        → cari di folder saat ini");
+                println!("{}", "Penggunaan /find:".bold().truecolor(72, 187, 120));
+                println!("    /find <nama>               → cari semua di Home (~)");
+                println!("    /find folder <nama>        → hanya folder");
+                println!("    /find file <nama>          → hanya file");
+                println!("    /find / <nama>             → cari di seluruh laptop");
+                println!("    /find folder / <nama>      → hanya folder, seluruh laptop");
             } else {
-                // Parse scope dan query
-                let (root, query) = if args.starts_with("/ ") {
-                    (std::path::PathBuf::from("/"), args[2..].trim().to_string())
-                } else if args.starts_with(". ") {
-                    (std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")), args[2..].trim().to_string())
-                } else if args == "/" || args == "." {
-                    ui::print_error("Penggunaan: /find / <nama_file> atau /find . <nama_file>");
-                    continue;
+                // ── Parse tipe (folder/file/both) ──
+                #[derive(PartialEq)]
+                enum FindType { Both, FolderOnly, FileOnly }
+
+                let (type_filter, rest) = if args.starts_with("folder ") {
+                    (FindType::FolderOnly, args[7..].trim().to_string())
+                } else if args.starts_with("file ") {
+                    (FindType::FileOnly, args[5..].trim().to_string())
                 } else {
-                    // Default: cari dari home (~)
-                    let home = std::env::var("HOME").unwrap_or_else(|_| "/".to_string());
-                    (std::path::PathBuf::from(home), args.clone())
+                    (FindType::Both, args.clone())
                 };
 
-                if query.is_empty() {
-                    ui::print_error("Nama file/folder tidak boleh kosong.");
+                // ── Parse scope (/, ., atau default ~) ──
+                let (root, query) = if rest.starts_with("/ ") {
+                    (std::path::PathBuf::from("/"), rest[2..].trim().to_string())
+                } else if rest.starts_with(". ") {
+                    (std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")), rest[2..].trim().to_string())
+                } else if rest == "/" || rest == "." || rest.is_empty() {
+                    ui::print_error("Nama yang dicari tidak boleh kosong.");
+                    continue;
                 } else {
-                    let scope_label = if root == std::path::PathBuf::from("/") {
-                        "seluruh laptop (/)".to_string()
-                    } else if root == std::env::current_dir().unwrap_or_default() {
-                        format!("folder saat ini ({})", root.display())
-                    } else {
-                        format!("home (~{})", root.display())
-                    };
-                    println!("  {} Mencari '{}' di {} ...", "🔍".truecolor(104, 211, 145), query.bold(), scope_label.dimmed());
-                    let results = find_files(&root, &query, 10, 300);
-                    ui::print_search_results(&query, &results);
-                }
+                    let home = std::env::var("HOME").unwrap_or_else(|_| "/".to_string());
+                    (std::path::PathBuf::from(home), rest.clone())
+                };
+
+                let scope_label = if root == std::path::PathBuf::from("/") {
+                    "seluruh laptop".to_string()
+                } else if root == std::env::current_dir().unwrap_or_default() {
+                    format!("folder saat ini ({})", root.display())
+                } else {
+                    "Home (~)".to_string()
+                };
+
+                let type_label = match type_filter {
+                    FindType::FolderOnly => " [folder]",
+                    FindType::FileOnly   => " [file]",
+                    FindType::Both       => "",
+                };
+
+                println!(
+                    "  {} Mencari{} '{}' di {} ...",
+                    "🔍".truecolor(104, 211, 145),
+                    type_label.dimmed(),
+                    query.bold(),
+                    scope_label.dimmed()
+                );
+
+                let only_dirs  = type_filter == FindType::FolderOnly;
+                let only_files = type_filter == FindType::FileOnly;
+                let results = find_files_typed(&root, &query, 10, 300, only_dirs, only_files);
+                ui::print_search_results(&query, &results);
             }
             continue;
         }
@@ -475,15 +505,26 @@ async fn process_query(
 
 // ─── File Search ──────────────────────────────────────────────────────────────
 
-/// Rekursif cari file/folder yang namanya mengandung `query` (case-insensitive).
-/// - `max_depth`: batas kedalaman direktori (default 8)
-/// - `max_results`: batas jumlah hasil (default 200)
-/// Direktori seperti `.git`, `node_modules`, `target` dilewati.
-pub fn find_files(root: &Path, query: &str, max_depth: usize, max_results: usize) -> Vec<String> {
+/// Cari file/folder dengan filter tipe opsional.
+/// - `only_dirs`: hanya kembalikan direktori
+/// - `only_files`: hanya kembalikan file
+pub fn find_files_typed(
+    root: &Path,
+    query: &str,
+    max_depth: usize,
+    max_results: usize,
+    only_dirs: bool,
+    only_files: bool,
+) -> Vec<String> {
     let query_lower = query.to_lowercase();
     let mut results = Vec::new();
-    find_recursive(root, &query_lower, 0, max_depth, max_results, &mut results);
+    find_recursive(root, &query_lower, 0, max_depth, max_results, only_dirs, only_files, &mut results);
     results
+}
+
+/// Backward-compatible wrapper (cari semua tipe)
+pub fn find_files(root: &Path, query: &str, max_depth: usize, max_results: usize) -> Vec<String> {
+    find_files_typed(root, query, max_depth, max_results, false, false)
 }
 
 fn find_recursive(
@@ -492,13 +533,32 @@ fn find_recursive(
     depth: usize,
     max_depth: usize,
     max_results: usize,
+    only_dirs: bool,
+    only_files: bool,
     results: &mut Vec<String>,
 ) {
     if depth > max_depth || results.len() >= max_results {
         return;
     }
 
-    let skip_dirs = ["target", ".git", "node_modules", ".cache", "__pycache__", ".cargo"];
+    let skip_dirs = [
+        // Build artifacts & Rust
+        "target", ".git",
+        // JS package managers & caches
+        "node_modules", ".bun", ".npm", ".yarn", ".pnpm-store",
+        // Python
+        "__pycache__", ".venv", "venv", ".virtualenv",
+        // Rust
+        ".cargo",
+        // General cache & temp
+        ".cache", ".tmp", "tmp",
+        // Build output
+        "dist", "build", ".next", ".nuxt", ".svelte-kit", "out",
+        // macOS system
+        "Library",
+        // PHP
+        "vendor",
+    ];
 
     let entries = match std::fs::read_dir(dir) {
         Ok(e) => e,
@@ -516,19 +576,33 @@ fn find_recursive(
             None => continue,
         };
 
+        let is_dir  = path.is_dir();
+        let is_file = path.is_file();
+
         // Skip direktori berat
-        if path.is_dir() && skip_dirs.contains(&name.as_str()) {
+        if is_dir && skip_dirs.contains(&name.as_str()) {
             continue;
         }
 
+        // Filter tipe
+        let should_match = if only_dirs  { is_dir  }
+                           else if only_files { is_file }
+                           else { true };
+
         // Cocokkan nama (case-insensitive, partial match)
-        if name.to_lowercase().contains(query) {
-            results.push(path.display().to_string());
+        if should_match && name.to_lowercase().contains(query) {
+            // Untuk folder: tampilkan dengan trailing /
+            let display = if is_dir {
+                format!("{}/", path.display())
+            } else {
+                path.display().to_string()
+            };
+            results.push(display);
         }
 
         // Rekursi ke subdirektori
-        if path.is_dir() {
-            find_recursive(&path, query, depth + 1, max_depth, max_results, results);
+        if is_dir {
+            find_recursive(&path, query, depth + 1, max_depth, max_results, only_dirs, only_files, results);
         }
     }
 }
