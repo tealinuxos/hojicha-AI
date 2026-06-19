@@ -800,13 +800,65 @@ async fn handle_interactive_git_flow(
 
     // 4. Push flow
     if is_push {
-        if confirm_command(command) {
-            let out = execute_command(command)?;
+        let remotes_out = execute_command("git remote")?;
+        let remotes: Vec<String> = remotes_out.stdout.lines().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
+        let remote = if remotes.is_empty() {
+            "origin".to_string()
+        } else if remotes.len() == 1 {
+            remotes[0].clone()
+        } else {
+            let selection = Select::new()
+                .with_prompt("Pilih remote repository tujuan")
+                .items(&remotes)
+                .default(0)
+                .interact()?;
+            remotes[selection].clone()
+        };
+
+        let branches_out = execute_command("git branch")?;
+        let mut branches: Vec<String> = branches_out.stdout.lines().map(|s| s.trim().trim_start_matches('*').trim().to_string()).filter(|s| !s.is_empty()).collect();
+        
+        let current_branch = execute_command("git branch --show-current")
+            .map(|o| o.stdout.trim().to_string())
+            .unwrap_or_else(|_| "main".to_string());
+
+        if let Some(pos) = branches.iter().position(|b| b == &current_branch) {
+            branches.remove(pos);
+        }
+        let mut branch_options = vec![current_branch.clone()];
+        branch_options.extend(branches);
+        branch_options.push("[Ketik branch manual...]".to_string());
+
+        let selection = Select::new()
+            .with_prompt("Pilih branch tujuan push")
+            .items(&branch_options)
+            .default(0)
+            .interact()?;
+
+        let branch = if selection == branch_options.len() - 1 {
+            print!("Masukkan nama branch tujuan: ");
+            let _ = io::stdout().flush();
+            let mut input = String::new();
+            io::stdin().read_line(&mut input)?;
+            input.trim().to_string()
+        } else {
+            branch_options[selection].clone()
+        };
+
+        if branch.is_empty() {
+            println!("Nama branch tidak boleh kosong.");
+            ui::print_cancelled();
+            return Ok(None);
+        }
+
+        let push_cmd = format!("git push {} {}", remote, branch);
+        if confirm_command(&push_cmd) {
+            let out = execute_command(&push_cmd)?;
             ui::print_raw_output(&out.stdout);
             if !out.success {
                 ui::print_command_failed(&out.stderr, out.exit_code);
             }
-            return Ok(Some(command.to_string()));
+            return Ok(Some(push_cmd));
         }
         ui::print_cancelled();
         return Ok(None);
