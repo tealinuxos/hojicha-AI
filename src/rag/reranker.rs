@@ -90,6 +90,7 @@ fn infer_category(query_tokens: &std::collections::HashSet<String>) -> Option<Ca
     let proc_kws = ["proses", "process", "pid", "kill", "running", "berjalan"];
     let pkg_kws = ["install", "instal", "apt", "update", "upgrade", "paket", "software"];
     let file_kws = ["file", "folder", "direktori", "ls", "find", "cari", "lihat"];
+    let docker_kws = ["docker", "container", "compose", "image", "volume"];
 
     // Check if any keyword appears as a whole token in the query
     let check = |kws: &[&str]| kws.iter().any(|&k| query_tokens.contains(k));
@@ -101,5 +102,6 @@ fn infer_category(query_tokens: &std::collections::HashSet<String>) -> Option<Ca
     else if check(&proc_kws) { Some(Category::Process) }
     else if check(&pkg_kws) { Some(Category::Package) }
     else if check(&file_kws) { Some(Category::Files) }
+    else if check(&docker_kws) { Some(Category::Docker) }
     else { None }
 }

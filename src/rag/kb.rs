@@ -15,6 +15,7 @@ pub enum Category {
     Package,
     System,
     Text,
+    Docker,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -55,7 +56,17 @@ impl KnowledgeBase {
         // Try reading from file
         if path.exists() {
             match Self::load_from_file(path) {
-                Ok(kb) => return kb,
+                Ok(kb) => {
+                    // Check if cached DB is outdated (e.g. has fewer entries than the embedded version)
+                    let default_entries: Vec<KbEntry> = serde_json::from_str(default_json).unwrap_or_default();
+                    if kb.entries.len() < default_entries.len() || std::fs::read_to_string(path).unwrap_or_default().contains("quit app \\\"Docker\\\"") {
+                        let _ = std::fs::write(path, default_json);
+                        if let Ok(new_kb) = Self::load_from_file(path) {
+                            return new_kb;
+                        }
+                    }
+                    return kb;
+                }
                 Err(e) => {
                     eprintln!("⚠️  Gagal membaca knowledge base dari {}: {}. Menggunakan data bawaan.", path.display(), e);
                 }

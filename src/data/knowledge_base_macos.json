@@ -488,5 +488,236 @@
     "risk": "Safe",
     "example": "hojicha --help",
     "beginner_tip": "Ketik pertanyaan Anda secara langsung dalam bahasa alami untuk mendapatkan bantuan perintah terminal"
+  },
+  {
+    "id": "docker-ps",
+    "command": "docker ps",
+    "description": "Menampilkan daftar container Docker yang sedang berjalan aktif saat ini",
+    "keywords": ["docker ps", "container jalan", "cek container", "running container", "list container"],
+    "category": "Docker",
+    "risk": "Safe",
+    "example": "docker ps",
+    "beginner_tip": "Gunakan command ini untuk mengetahui container apa saja yang sedang aktif beserta port-nya"
+  },
+  {
+    "id": "docker-ps-all",
+    "command": "docker ps -a",
+    "description": "Menampilkan semua container Docker di sistem, baik yang sedang aktif maupun yang sudah mati/berhenti",
+    "keywords": ["docker ps -a", "semua container", "container mati", "all containers"],
+    "category": "Docker",
+    "risk": "Safe",
+    "example": "docker ps -a",
+    "beginner_tip": "Sangat berguna untuk mencari container lama yang mati atau keluar dengan error status"
+  },
+  {
+    "id": "docker-images",
+    "command": "docker images",
+    "description": "Menampilkan daftar semua Docker image lokal yang tersimpan di komputer Anda",
+    "keywords": ["docker images", "list image", "lihat image", "docker image ls"],
+    "category": "Docker",
+    "risk": "Safe",
+    "example": "docker images",
+    "beginner_tip": "Menunjukkan nama repository, tag versi, ID image, dan ukuran file image tersebut"
+  },
+  {
+    "id": "docker-pull",
+    "command": "docker pull",
+    "description": "Mengunduh (download) Docker image dari registry online seperti Docker Hub ke komputer lokal",
+    "keywords": ["docker pull", "download image", "unduh image", "pull image"],
+    "category": "Docker",
+    "risk": "Safe",
+    "example": "docker pull ubuntu:latest",
+    "beginner_tip": "Secara default akan mengunduh versi dengan tag 'latest' jika Anda tidak menentukan tag-nya"
+  },
+  {
+    "id": "docker-build",
+    "command": "docker build",
+    "description": "Membuat (build) Docker image baru berdasarkan instruksi yang ada di dalam berkas Dockerfile",
+    "keywords": ["docker build", "bikin image", "build image", "dockerfile build"],
+    "category": "Docker",
+    "risk": "Safe",
+    "example": "docker build -t namaservice:1.0 .",
+    "beginner_tip": "Tanda titik (.) di akhir perintah menunjukkan lokasi folder saat ini yang berisi berkas Dockerfile"
+  },
+  {
+    "id": "docker-run",
+    "command": "docker run",
+    "description": "Membuat dan menjalankan container baru dari suatu Docker image tertentu",
+    "keywords": ["docker run", "jalankan container", "start new container", "run image"],
+    "category": "Docker",
+    "risk": "Moderate",
+    "example": "docker run -d -p 8080:80 --name webserver nginx",
+    "beginner_tip": "-d untuk berjalan di background, -p untuk memetakan port (host:container), dan --name untuk memberi nama container"
+  },
+  {
+    "id": "docker-stop",
+    "command": "docker stop",
+    "description": "Menghentikan container yang sedang berjalan secara aman (memberikan sinyal SIGTERM)",
+    "keywords": ["docker stop", "matikan container", "hentikan container", "stop container"],
+    "category": "Docker",
+    "risk": "Safe",
+    "example": "docker stop nama_container",
+    "beginner_tip": "Gunakan nama container atau ID container untuk menghentikannya"
+  },
+  {
+    "id": "docker-restart",
+    "command": "docker restart",
+    "description": "Menghentikan kemudian menjalankan kembali (restart) sebuah container",
+    "keywords": ["docker restart", "restart container", "mulai ulang container"],
+    "category": "Docker",
+    "risk": "Safe",
+    "example": "docker restart nama_container",
+    "beginner_tip": "Sangat praktis untuk menerapkan konfigurasi baru tanpa harus menghapus container terlebih dahulu"
+  },
+  {
+    "id": "docker-rm",
+    "command": "docker rm",
+    "description": "Menghapus satu atau beberapa container yang sudah tidak aktif (stopped)",
+    "keywords": ["docker rm", "hapus container", "buang container", "delete container"],
+    "category": "Docker",
+    "risk": "Moderate",
+    "example": "docker rm nama_container",
+    "beginner_tip": "Container harus dihentikan (docker stop) terlebih dahulu sebelum bisa dihapus, kecuali menggunakan flag -f (force)"
+  },
+  {
+    "id": "docker-rmi",
+    "command": "docker rmi",
+    "description": "Menghapus satu atau beberapa Docker image dari komputer lokal Anda",
+    "keywords": ["docker rmi", "hapus image", "buang image", "delete image"],
+    "category": "Docker",
+    "risk": "Moderate",
+    "example": "docker rmi image_id",
+    "beginner_tip": "Image tidak dapat dihapus jika masih digunakan oleh container aktif atau non-aktif"
+  },
+  {
+    "id": "docker-logs",
+    "command": "docker logs",
+    "description": "Melihat log atau output terminal dari suatu container tertentu",
+    "keywords": ["docker logs", "log container", "lihat output container", "logs"],
+    "category": "Docker",
+    "risk": "Safe",
+    "example": "docker logs -f nama_container",
+    "beginner_tip": "Gunakan flag '-f' (follow) untuk memantau log secara real-time saat log baru masuk"
+  },
+  {
+    "id": "docker-exec",
+    "command": "docker exec -it",
+    "description": "Menjalankan perintah baru secara interaktif di dalam container yang sedang aktif",
+    "keywords": ["docker exec", "masuk container", "shell container", "exec", "exec -it"],
+    "category": "Docker",
+    "risk": "Safe",
+    "example": "docker exec -it nama_container bash",
+    "beginner_tip": "Gunakan 'bash' atau 'sh' untuk masuk ke dalam terminal/shell shell interaktif container tersebut"
+  },
+  {
+    "id": "docker-stats",
+    "command": "docker stats",
+    "description": "Menampilkan statistik penggunaan resource (CPU, Memori, I/O jaringan) dari semua container aktif secara real-time",
+    "keywords": ["docker stats", "ram container", "cpu container", "resource monitor"],
+    "category": "Docker",
+    "risk": "Safe",
+    "example": "docker stats",
+    "beginner_tip": "Tekan Ctrl+C untuk keluar dari monitoring statistik ini"
+  },
+  {
+    "id": "docker-inspect",
+    "command": "docker inspect",
+    "description": "Menampilkan informasi detail tingkat rendah (low-level) dari objek Docker (container, image, volume, dll.) dalam format JSON",
+    "keywords": ["docker inspect", "detail container", "ip container", "inspect"],
+    "category": "Docker",
+    "risk": "Safe",
+    "example": "docker inspect nama_container",
+    "beginner_tip": "Sangat berguna untuk mencari tahu alamat IP lokal container atau volume binding"
+  },
+  {
+    "id": "docker-network-ls",
+    "command": "docker network ls",
+    "description": "Menampilkan daftar semua jaringan (network) Docker yang terdaftar di sistem",
+    "keywords": ["docker network ls", "list network", "jaringan docker"],
+    "category": "Docker",
+    "risk": "Safe",
+    "example": "docker network ls",
+    "beginner_tip": "Docker memiliki network bawaan seperti bridge, host, dan none"
+  },
+  {
+    "id": "docker-volume-ls",
+    "command": "docker volume ls",
+    "description": "Menampilkan daftar semua volume penyimpanan lokal yang dikelola oleh Docker",
+    "keywords": ["docker volume ls", "list volume", "volume docker", "penyimpanan container"],
+    "category": "Docker",
+    "risk": "Safe",
+    "example": "docker volume ls",
+    "beginner_tip": "Volume digunakan untuk menyimpan data container secara persisten agar tidak hilang saat container dihapus"
+  },
+  {
+    "id": "docker-compose-up",
+    "command": "docker compose up",
+    "description": "Membuat, mengunduh, dan menjalankan semua service yang didefinisikan dalam file docker-compose.yml",
+    "keywords": ["docker compose up", "compose up", "jalankan compose", "docker-compose up"],
+    "category": "Docker",
+    "risk": "Safe",
+    "example": "docker compose up -d",
+    "beginner_tip": "Gunakan flag '-d' agar seluruh service berjalan di latar belakang (detached mode)"
+  },
+  {
+    "id": "docker-compose-down",
+    "command": "docker compose down",
+    "description": "Menghentikan dan menghapus seluruh container, network, dan image yang dibuat oleh perintah 'up'",
+    "keywords": ["docker compose down", "compose down", "matikan compose", "docker-compose down"],
+    "category": "Docker",
+    "risk": "Moderate",
+    "example": "docker compose down",
+    "beginner_tip": "Menambahkan flag '-v' juga akan menghapus volume bernama (named volumes) yang terdefinisi di docker-compose.yml"
+  },
+  {
+    "id": "docker-compose-logs",
+    "command": "docker compose logs",
+    "description": "Menampilkan output log gabungan dari seluruh service yang dikelola oleh Docker Compose",
+    "keywords": ["docker compose logs", "compose logs", "log compose"],
+    "category": "Docker",
+    "risk": "Safe",
+    "example": "docker compose logs -f",
+    "beginner_tip": "Gunakan flag '-f' untuk memantau log secara real-time dari semua service sekaligus"
+  },
+  {
+    "id": "docker-compose-exec",
+    "command": "docker compose exec",
+    "description": "Menjalankan perintah interaktif di dalam container service Docker Compose yang sedang aktif",
+    "keywords": ["docker compose exec", "compose exec", "masuk compose container"],
+    "category": "Docker",
+    "risk": "Safe",
+    "example": "docker compose exec app bash",
+    "beginner_tip": "Ganti 'app' dengan nama service yang tertera di file docker-compose.yml Anda"
+  },
+  {
+    "id": "docker-system-prune",
+    "command": "docker system prune",
+    "description": "Membersihkan space disk dengan menghapus semua resource Docker yang tidak terpakai (stopped container, unused network, dangling image & cache)",
+    "keywords": ["docker system prune", "clean docker", "bersihkan docker", "prune"],
+    "category": "Docker",
+    "risk": "Dangerous",
+    "example": "docker system prune -a --volumes",
+    "beginner_tip": "HATI-HATI: Perintah ini menghapus data secara permanen. Tambahkan flag '-a' untuk menghapus semua image yang tidak digunakan container aktif, dan '--volumes' untuk menghapus volume tidak terpakai"
+  },
+  {
+    "id": "docker-start",
+    "command": "open -a Docker",
+    "description": "Menjalankan aplikasi Docker Desktop pada macOS",
+    "keywords": ["jalankan docker", "nyalakan docker", "start docker", "run docker", "hidupkan docker"],
+    "category": "Docker",
+    "risk": "Safe",
+    "example": "open -a Docker",
+    "beginner_tip": "Docker Desktop di macOS berjalan sebagai aplikasi desktop, gunakan open -a Docker untuk meluncurkannya"
+  },
+  {
+    "id": "docker-stop",
+    "command": "osascript -e 'quit app \"Docker Desktop\"'",
+    "description": "Menghentikan/menutup aplikasi Docker Desktop pada macOS",
+    "keywords": ["matikan docker", "hentikan docker", "stop docker", "quit docker", "close docker"],
+    "category": "Docker",
+    "risk": "Safe",
+    "example": "osascript -e 'quit app \"Docker Desktop\"'",
+    "beginner_tip": "Mengirim perintah quit ke aplikasi Docker Desktop secara aman di macOS"
   }
 ]
+
