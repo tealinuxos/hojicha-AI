@@ -1,0 +1,19 @@
+pub mod bm25;
+pub mod client;
+pub mod embedder;
+pub mod gemini;
+pub mod kb;
+pub mod ollama;
+pub mod openai;
+pub mod pipeline;
+pub mod prompt;
+pub mod reranker;
+pub mod retriever;
+pub mod utils;
+
+pub use client::{AiClient, CommandResponse, OutputSummary};
+pub use gemini::GeminiClient;
+pub use ollama::OllamaClient;
+pub use openai::OpenAiClient;
+pub use pipeline::RagPipeline;
+pub use prompt::system_prompt;

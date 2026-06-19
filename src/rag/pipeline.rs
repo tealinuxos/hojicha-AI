@@ -1,0 +1,182 @@
+//! Full RAG pipeline orchestrator.
+//! Flow: rewrite (keyword-aware) → retrieve → rerank → build context with keywords → LLM
+
+use anyhow::Result;
+use std::collections::HashMap;
+
+use crate::rag::client::{AiClient, CommandResponse};
+use crate::rag::kb::KnowledgeBase;
+use crate::rag::reranker::rerank;
+use crate::rag::retriever::HybridRetriever;
+
+/// Singleton-style pipeline — built once, reused across queries
+pub struct RagPipeline {
+    pub kb: KnowledgeBase,
+    retriever: HybridRetriever,
+    /// Keyword synonym map: keyword → related keywords from same KB entry.
+    /// Used for query expansion so that "cek ram" also searches for "memori", "free", etc.
+    synonym_map: HashMap<String, Vec<String>>,
+}
+
+impl RagPipeline {
+    /// Build the pipeline. Indexes KB in memory (fast, ~1ms).
+    pub fn build(kb_path: &std::path::Path) -> Self {
+        let kb = KnowledgeBase::load(kb_path);
+        let retriever = HybridRetriever::build(&kb);
+        let synonym_map = Self::build_synonym_map(&kb);
+        Self { kb, retriever, synonym_map }
+    }
+
+    /// Run the full RAG pipeline for a given query.
+    /// Returns a CommandResponse enriched with KB context.
+    /// `history` is the conversation history for multi-turn context.
+    pub async fn run(
+        &self,
+        ai_client: &mut AiClient,
+        user_input: &str,
+        history: &[(String, String)],
+    ) -> Result<CommandResponse> {
+        // 1. Rewrite query using KB keyword synonym expansion
+        let rewritten = self.rewrite_query(user_input);
+
+        // 2. Hybrid retrieval
+        let hits = self.retriever.retrieve(&rewritten, &self.kb, 6);
+
+        // 3. Rerank (with keyword boost)
+        let ranked = rerank(&rewritten, hits);
+
+        // 4. Build context from top-3 entries — keywords included for few-shot
+        let top3: Vec<_> = ranked.into_iter().take(3).collect();
+        let mut context = build_context(&top3);
+
+        // 5. Append general assistant info to context so the model always has its persona context
+        let info_str = include_str!("../data/general_info.json");
+        if !context.is_empty() {
+            context.push_str("\n\n");
+        }
+        context.push_str("INFORMASI UMUM ASISTEN (Gunakan ini untuk menjawab sapaan/pertanyaan tentang diri Anda secara natural):\n");
+        context.push_str(info_str);
+
+        // 6. Build RAG-augmented system prompt (with keyword-driven few-shot)
+        let system = build_rag_system_prompt(&context);
+
+        // 7. Build user input with conversation history for multi-turn context
+        // FIXED: Previously, history was accepted as a parameter but never passed
+        // to the LLM, so every query was treated as a fresh conversation.
+        let augmented_input = if history.is_empty() {
+            user_input.to_string()
+        } else {
+            let mut input_with_history = String::new();
+            // Include last 5 turns of conversation history
+            for (user_msg, assistant_msg) in history.iter().rev().take(5).rev() {
+                input_with_history.push_str(&format!(
+                    "[Previous] User: {}\n[Previous] Assistant: {}\n\n",
+                    user_msg, assistant_msg
+                ));
+            }
+            input_with_history.push_str(&format!("[Current] User: {}", user_input));
+            input_with_history
+        };
+
+        // 8. Call LLM
+        let response = ai_client.nl_to_command(&system, &augmented_input).await?;
+        Ok(response)
+    }
+
+    /// Build a synonym map from KB entries.
+    /// Each keyword in an entry maps to all OTHER keywords in the same entry.
+    /// This enables keyword-aware query expansion: if user says "ram",
+    /// the query is expanded with "memori", "memory", "free", "cek ram", etc.
+    fn build_synonym_map(kb: &KnowledgeBase) -> HashMap<String, Vec<String>> {
+        let mut map: HashMap<String, Vec<String>> = HashMap::new();
+
+        for entry in &kb.entries {
+            let kws = &entry.keywords;
+            for (i, kw) in kws.iter().enumerate() {
+                let related: Vec<String> = kws.iter()
+                    .enumerate()
+                    .filter(|(j, _)| *j != i)
+                    .map(|(_, v)| v.clone())
+                    .collect();
+
+                map.entry(kw.to_lowercase())
+                    .or_default()
+                    .extend(related);
+            }
+        }
+
+        // Deduplicate each keyword's synonym list
+        for synonyms in map.values_mut() {
+            synonyms.sort();
+            synonyms.dedup();
+        }
+
+        map
+    }
+
+    /// Keyword-aware query rewriter.
+    /// Expands user input using the synonym map built from KB keywords.
+    fn rewrite_query(&self, input: &str) -> String {
+        let s = input.to_lowercase();
+        let mut expansions: Vec<String> = Vec::new();
+
+        // For each token in the query, check if it matches any KB keyword
+        let tokens: Vec<&str> = s.split_whitespace().collect();
+        for token in &tokens {
+            let normalized = token.trim_matches(|c: char| !c.is_alphanumeric());
+            if let Some(synonyms) = self.synonym_map.get(normalized) {
+                // Add up to 4 synonyms per keyword to avoid query bloat
+                for syn in synonyms.iter().take(4) {
+                    if !s.contains(syn.as_str()) {
+                        expansions.push(syn.clone());
+                    }
+                }
+            }
+        }
+
+        if expansions.is_empty() {
+            s
+        } else {
+            format!("{} {}", s, expansions.join(" "))
+        }
+    }
+}
+
+/// Build rich context from retrieved entries — includes keywords as few-shot hints
+/// so the LLM can see what user phrasings map to which commands.
+fn build_context(entries: &[crate::rag::retriever::RetrievedEntry<'_>]) -> String {
+    if entries.is_empty() {
+        return String::new();
+    }
+    let mut ctx = String::from(
+        "Referensi perintah Linux yang relevan (gunakan keyword untuk mencocokkan intent pengguna):\n"
+    );
+    for (i, e) in entries.iter().enumerate() {
+        let keywords_str = e.entry.keywords.join(", ");
+        let risk_str = match e.entry.risk {
+            crate::rag::kb::RiskTag::Safe => "Aman",
+            crate::rag::kb::RiskTag::Moderate => "Perlu perhatian",
+            crate::rag::kb::RiskTag::Dangerous => "Berbahaya",
+        };
+        ctx.push_str(&format!(
+            "\n[{}] Perintah: `{}`\n    Kategori: {:?}\n    Tingkat Risiko: {}\n    Keyword yang cocok: {}\n    Keterangan: {}\n    Contoh: `{}`\n    Tips: {}\n",
+            i + 1,
+            e.entry.command,
+            e.entry.category,
+            risk_str,
+            keywords_str,
+            e.entry.description,
+            e.entry.example,
+            e.entry.beginner_tip,
+        ));
+    }
+    ctx
+}
+
+fn build_rag_system_prompt(context: &str) -> String {
+    let base = crate::rag::system_prompt();
+    if context.is_empty() {
+        return base;
+    }
+    format!("{}\n\n---\n{}", base, context)
+}

@@ -1,19 +1,16 @@
-/// Tera-AI: Lightweight AI-powered Linux CLI assistant for beginners.
-/// Accepts natural language in Indonesian/English, generates safe Linux commands,
-/// executes them, and explains output in beginner-friendly language.
-
-pub mod ai;
+/// Hojicha-AI: Lightweight AI-powered Linux CLI assistant for beginners.
+/// Hybrid RAG architecture: Intent → Rules → RAG → LLM → Safety → Exec
+pub mod config;
 pub mod executor;
-pub mod prompt;
+pub mod rag;
 pub mod safety;
 pub mod ui;
 
-use ai::{AiClient, LocalModelClient, OllamaClient, OpenAiClient};
 use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use executor::execute_command;
-use prompt::system_prompt;
+use rag::{AiClient, RagPipeline};
 use safety::{check_safety, RiskLevel};
 use serde_json::Value;
 use std::io::{self, Write};
@@ -30,18 +27,6 @@ pub struct Cli {
     /// Pertanyaan atau perintah dalam bahasa alami (opsional - tanpa argumen masuk mode interaktif)
     pub query: Option<String>,
 
-    /// URL server Ollama
-    #[arg(long, default_value = "http://localhost:11434")]
-    pub ollama_url: String,
-
-    /// Nama model Ollama yang akan digunakan
-    #[arg(short, long, default_value = "qwen2.5:1.5b")]
-    pub model: String,
-
-    /// Gunakan model built-in offline lokal (tanpa memerlukan Ollama)
-    #[arg(short, long, default_value_t = false)]
-    pub local: bool,
-
     /// Gunakan OpenAI-compatible API: --opencode <URL> [MODEL_NAME]
     #[arg(long, num_args = 1..=2)]
     pub opencode: Option<Vec<String>>,
@@ -53,52 +38,81 @@ pub struct Cli {
     /// Jalankan tanpa konfirmasi (langsung eksekusi)
     #[arg(short = 'y', long, default_value_t = false)]
     pub yes: bool,
+
+    /// Path ke file data JSON untuk RAG knowledge base
+    #[arg(long)]
+    pub kb_path: Option<String>,
+}
+
+fn resolve_kb_path(cli_path: Option<&str>) -> std::path::PathBuf {
+    if let Some(path_str) = cli_path {
+        return std::path::PathBuf::from(path_str);
+    }
+
+    let suffix = if std::env::consts::OS == "macos" {
+        "macos"
+    } else {
+        "linux"
+    };
+    let filename = format!("knowledge_base_{}.json", suffix);
+
+    // 1. Check in the current working directory
+    let cwd_path = std::path::Path::new("src/data").join(&filename);
+    if cwd_path.exists() {
+        return cwd_path;
+    }
+
+    // 2. Fallback to ~/.config/hojicha/knowledge_base_<suffix>.json
+    if let Ok(home) = std::env::var("HOME") {
+        std::path::PathBuf::from(home)
+            .join(".config")
+            .join("hojicha")
+            .join(&filename)
+    } else {
+        std::path::PathBuf::from("src/data").join(&filename)
+    }
 }
 
 // ─── Main run function ────────────────────────────────────────────────────────
 
 pub async fn run(cli: Cli) -> Result<()> {
-    let mut ai_client = if cli.local {
-        // Force loading local built-in model
-        AiClient::Local(LocalModelClient::load_built_in()?)
-    } else if let Some(opencode_args) = cli.opencode {
-        // Use OpenAI-compatible API with provided URL
+    let kb_file_path = resolve_kb_path(cli.kb_path.as_deref());
+    // Build RAG pipeline (indexes KB in memory, ~1ms)
+    let rag_pipeline = RagPipeline::build(&kb_file_path);
+
+    // Load AI client: --opencode flag overrides config file
+    let mut ai_client = if let Some(opencode_args) = cli.opencode {
         let base_url = opencode_args[0].clone();
         let api_key = load_opencode_api_key().unwrap_or_default();
         let model = if opencode_args.len() > 1 {
-            // Model name provided as second argument
             opencode_args[1].clone()
-        } else if cli.model != "qwen2.5:1.5b" {
-            // Use --model flag if explicitly set
-            cli.model.clone()
         } else {
-            // Use default model from opencode config if available
-            load_opencode_model().unwrap_or(cli.model.clone())
+            load_opencode_model().unwrap_or_else(|| "gpt-4o-mini".to_string())
         };
-        AiClient::OpenAi(OpenAiClient::new(&base_url, &api_key, &model))
+        let openai_config = crate::config::OpenAiConfig {
+            base_url: Some(base_url),
+            api_key: Some(api_key),
+            model,
+            ..Default::default()
+        };
+        AiClient::OpenAi(rag::OpenAiClient::new(openai_config))
     } else {
-        // Attempt to connect to Ollama. If it fails, fallback to local model.
-        let ollama = OllamaClient::new(&cli.ollama_url, &cli.model);
-        if ollama.ping().await {
-            AiClient::Ollama(ollama)
-        } else {
-            println!(
-                "⚠️  {} {}",
-                "Tidak bisa terhubung ke Ollama.".yellow().bold(),
-                "Mengaktifkan model built-in offline lokal...".yellow()
-            );
-            println!();
-            AiClient::Local(LocalModelClient::load_built_in()?)
-        }
+        let config = crate::config::LlmConfig::load_or_create()?;
+        crate::config::load_ai_client_from_config(&config).await?
     };
 
-    // Single-query mode (non-interactive)
     if let Some(query) = &cli.query {
-        return run_single_query(&mut ai_client, query, cli.no_summary, cli.yes).await;
+        return run_single_query(
+            &mut ai_client,
+            &rag_pipeline,
+            query,
+            cli.no_summary,
+            cli.yes,
+        )
+        .await;
     }
 
-    // Interactive REPL mode
-    run_interactive(&mut ai_client, cli.no_summary, cli.yes).await
+    run_interactive(&mut ai_client, &rag_pipeline, cli.no_summary, cli.yes).await
 }
 
 fn load_opencode_api_key() -> Option<String> {
@@ -107,7 +121,7 @@ fn load_opencode_api_key() -> Option<String> {
         .join(".config/opencode/opencode.json");
     let content = std::fs::read_to_string(config_path).ok()?;
     let v: Value = serde_json::from_str(&content).ok()?;
-    
+
     // Try to find apiKey from any provider
     let provider = v["provider"].as_object()?;
     for (_, provider_config) in provider {
@@ -125,7 +139,7 @@ fn load_opencode_model() -> Option<String> {
     let content = std::fs::read_to_string(config_path).ok()?;
     let v: Value = serde_json::from_str(&content).ok()?;
     let model = v["model"].as_str()?.to_string();
-    
+
     // Strip provider prefix: "provider/model-name" -> "model-name"
     if model.contains('/') {
         Some(model[model.find('/').unwrap() + 1..].to_string())
@@ -138,11 +152,12 @@ fn load_opencode_model() -> Option<String> {
 
 async fn run_single_query(
     ai_client: &mut AiClient,
+    rag: &RagPipeline,
     query: &str,
     no_summary: bool,
     auto_yes: bool,
 ) -> Result<()> {
-    process_query(ai_client, query, no_summary, auto_yes, &[]).await?;
+    process_query(ai_client, rag, query, no_summary, auto_yes, &[]).await?;
     Ok(())
 }
 
@@ -150,6 +165,7 @@ async fn run_single_query(
 
 async fn run_interactive(
     ai_client: &mut AiClient,
+    rag: &RagPipeline,
     no_summary: bool,
     auto_yes: bool,
 ) -> Result<()> {
@@ -159,22 +175,40 @@ async fn run_interactive(
         AiClient::Ollama(ollama) => {
             println!(
                 "  {} {}",
-                "Terhubung ke Ollama".green().bold(),
-                format!("(model: {})", ollama.model).dimmed()
+                "Terhubung ke Ollama lokal".green().bold(),
+                format!("(model: {})", ollama.config.model).dimmed()
             );
         }
         AiClient::OpenAi(openai) => {
             println!(
                 "  {} {}",
-                "Terhubung ke OpenCode (9router)".green().bold(),
-                format!("(model: {})", openai.model).dimmed()
+                "Terhubung ke OpenAI".green().bold(),
+                format!("(model: {})", openai.config.model).dimmed()
             );
         }
-        AiClient::Local(_) => {
+        AiClient::Gemini(gemini) => {
             println!(
                 "  {} {}",
-                "Menggunakan model built-in lokal".green().bold(),
-                "(SmolLM2-135M · Offline)".dimmed()
+                "Terhubung ke Gemini".green().bold(),
+                format!("(model: {})", gemini.config.model).dimmed()
+            );
+        }
+        AiClient::OpenRouter(openrouter) => {
+            println!(
+                "  {} {}",
+                format!("Terhubung ke {}", openrouter.provider_name())
+                    .green()
+                    .bold(),
+                format!("(model: {})", openrouter.config.model).dimmed()
+            );
+        }
+        AiClient::Groq(groq) => {
+            println!(
+                "  {} {}",
+                format!("Terhubung ke {}", groq.provider_name())
+                    .green()
+                    .bold(),
+                format!("(model: {})", groq.config.model).dimmed()
             );
         }
     }
@@ -187,7 +221,6 @@ async fn run_interactive(
     println!("{}", "─".repeat(50).truecolor(60, 60, 80));
     println!();
 
-    // Conversation history: (user_input, ai_response_json)
     let mut history: Vec<(String, String)> = Vec::new();
 
     loop {
@@ -214,16 +247,8 @@ async fn run_interactive(
                 continue;
             }
             "model" | "/model" => {
-                match ai_client {
-                    AiClient::Ollama(ollama) => {
-                        ui::print_model_info(&ollama.model, &ollama.base_url);
-                    }
-                    AiClient::OpenAi(openai) => {
-                        ui::print_model_info(&openai.model, &openai.base_url);
-                    }
-                    AiClient::Local(_) => {
-                        ui::print_model_info("SmolLM2-135M-Instruct (Quantized)", "Embedded (Candle)");
-                    }
+                if let Err(e) = crate::config::run_model_wizard(ai_client).await {
+                    ui::print_error(&format!("Gagal menjalankan konfigurasi model: {}", e));
                 }
                 continue;
             }
@@ -235,7 +260,7 @@ async fn run_interactive(
             _ => {}
         }
 
-        match process_query(ai_client, &input, no_summary, auto_yes, &history).await {
+        match process_query(ai_client, rag, &input, no_summary, auto_yes, &history).await {
             Ok(Some(response_json)) => {
                 history.push((input, response_json));
                 if history.len() > 5 {
@@ -256,17 +281,18 @@ async fn run_interactive(
 
 async fn process_query(
     ai_client: &mut AiClient,
+    rag: &RagPipeline,
     user_input: &str,
     _no_summary: bool,
     auto_yes: bool,
-    _history: &[(String, String)],
+    // FIXED: renamed from _history to history — now actually used
+    history: &[(String, String)],
 ) -> Result<Option<String>> {
+    // ── Step 1: RAG Pipeline → LLM ──────────────────────────────
     ui::print_thinking();
-
-    let sys = system_prompt();
-    let ai_response = ai_client.nl_to_command(&sys, user_input).await;
-
-    let cmd_resp = match ai_response {
+    // FIXED: Pass conversation history to the RAG pipeline so the LLM
+    // has multi-turn context. Previously history was accepted but ignored.
+    let cmd_resp = match rag.run(ai_client, user_input, history).await {
         Ok(r) => r,
         Err(e) => {
             ui::print_error(&format!("AI error: {}", e));
@@ -274,7 +300,7 @@ async fn process_query(
         }
     };
 
-    // Case 1: No command suggested
+    // ── Step 4: Display command info ────────────────────────────────
     let command = match &cmd_resp.command {
         None => {
             ui::print_no_command(&cmd_resp.explanation);
@@ -287,7 +313,7 @@ async fn process_query(
         Some(c) => c.clone(),
     };
 
-    // Case 3: Safety check
+    // ── Step 5: Safety Check ────────────────────────────────────────
     let safety = check_safety(&command);
 
     match safety.risk {
@@ -305,7 +331,7 @@ async fn process_query(
                 io::stdin().read_line(&mut confirm)?;
                 let confirm = confirm.trim().to_lowercase();
                 match confirm.as_str() {
-                    "y" | "yes" | "ya" => {} // proceed
+                    "y" | "yes" | "ya" => {}
                     _ => {
                         ui::print_cancelled();
                         return Ok(None);
@@ -321,7 +347,7 @@ async fn process_query(
         }
     }
 
-    // Case 4: Execute the command
+    // ── Step 6: Execute ─────────────────────────────────────────────
     ui::print_executing(&command);
 
     let output = match execute_command(&command) {
@@ -332,12 +358,23 @@ async fn process_query(
         }
     };
 
-    // Show raw output directly (unboxed)
     ui::print_raw_output(&output.stdout);
     if !output.success && !output.stderr.is_empty() {
         ui::print_command_failed(&output.stderr, output.exit_code);
     }
 
-    let history_entry = serde_json::to_string(&cmd_resp.command).unwrap_or_default();
+    // Show explanation + tip if present
+    if !cmd_resp.explanation.is_empty() {
+        ui::print_explanation(&cmd_resp.explanation, cmd_resp.beginner_tip.as_deref());
+    }
+
+    // FIXED: Store the full response (command + explanation) for history context,
+    // not just the JSON-serialized command string. Previously stored
+    // `serde_json::to_string(&cmd_resp.command)` which lost all context.
+    let history_entry = format!(
+        "command: {}, explanation: {}",
+        command,
+        cmd_resp.explanation
+    );
     Ok(Some(history_entry))
 }

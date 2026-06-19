@@ -1,6 +1,6 @@
-# Tera-AI CLI Skeleton
+# Hojicha AI
 
-A minimal terminal application skeleton built with Rust and `clap`.
+Asisten terminal berbasis AI dengan konfigurasi provider LLM cloud dan lokal.
 
 ## Prerequisites
 - Rust and Cargo installed.
@@ -14,28 +14,19 @@ cargo build --release
 ## Usage
 Run the application using Cargo:
 
-### Echo a message
+### Ask a Question
 ```bash
-cargo run -- echo "Hello, Rust!"
+cargo run -- "cek ram laptop saya"
 ```
 
-### Ask a Question (Local AI)
-Interact with a local AI model (simulated in skeleton mode):
-```bash
-cargo run -- ask "Apa itu Rust?" --model models/llama-3.gguf
-```
+Provider LLM yang didukung: Ollama lokal, OpenAI, Gemini, OpenRouter, dan Groq.
 
 ### Interactive Mode (REPL)
 Run without arguments to enter interactive mode:
 ```bash
 cargo run
 ```
-Inside the REPL, type any message to see it echoed back, or type `exit`/`quit` to leave.
-
-### Project Structure
-- `src/ai.rs`: Local AI inference engine logic.
-- `models/`: Directory to store GGUF/GGML model files.
-- `src/lib.rs`: Core application logic and command definitions.
+Inside the REPL, type `/model` to configure the active provider, API key, model, and base URL.
 
 ### Display Version
 ```bash

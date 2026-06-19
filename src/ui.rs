@@ -1,5 +1,8 @@
 /// UI module: Handles all terminal output formatting with colors and styles.
 use colored::Colorize;
+use std::io::{self, Write};
+use std::thread;
+use std::time::Duration;
 
 // ─── Brand (Shown only at startup) ───────────────────────────────────────────
 
@@ -44,23 +47,16 @@ pub fn print_prompt() {
 // ─── Minimalist Execution UI ─────────────────────────────────────────────────
 
 pub fn print_thinking() {
-    // Print nothing to keep the terminal output clean and silent while waiting
+    // Intentionally silent to keep terminal output clean while waiting for LLM
 }
 
-pub fn print_section_divider() {
-    // Do nothing to keep layout compact and clean
-}
-
-pub fn print_command_proposal(_command: &str) {
-    // Do nothing (handled directly by print_executing)
-}
-
-pub fn print_explanation(_explanation: &str) {
-    // Do nothing
-}
-
-pub fn print_tip(_tip: &str) {
-    // Do nothing
+pub fn print_explanation(explanation: &str, tip: Option<&str>) {
+    if !explanation.is_empty() {
+        println!("  {} {}", "ℹ".truecolor(104, 211, 145), explanation.truecolor(200, 200, 200));
+    }
+    if let Some(t) = tip {
+        println!("  {} {}", "💡".truecolor(251, 191, 36), t.truecolor(180, 180, 180).italic());
+    }
 }
 
 pub fn print_confirm_moderate() {
@@ -72,7 +68,15 @@ pub fn print_blocked_dangerous(reason: &str) {
 }
 
 pub fn print_no_command(explanation: &str) {
-    println!("  {}", explanation);
+    print!("  \x1b[38;2;200;200;200m");
+    let mut stdout = io::stdout();
+    for c in explanation.chars() {
+        print!("{}", c);
+        let _ = stdout.flush();
+        thread::sleep(Duration::from_millis(10));
+    }
+    print!("\x1b[0m");
+    println!();
 }
 
 pub fn print_executing(command: &str) {
@@ -86,10 +90,6 @@ pub fn print_raw_output(output: &str) {
     }
 }
 
-pub fn print_output_summary(_summary: &str, _key_info: &str, _next: Option<&str>) {
-    // Do nothing to maintain minimal terminal layout
-}
-
 pub fn print_command_failed(stderr: &str, exit_code: i32) {
     println!("  {} (exit code: {})", "Perintah gagal".red(), exit_code);
     if !stderr.is_empty() {
@@ -99,10 +99,6 @@ pub fn print_command_failed(stderr: &str, exit_code: i32) {
 
 pub fn print_cancelled() {
     println!("  {}", "Dibatalkan.".dimmed());
-}
-
-pub fn print_skipped() {
-    println!("  {}", "Perintah tidak dijalankan.".dimmed());
 }
 
 // ─── Status / info ───────────────────────────────────────────────────────────
