@@ -88,7 +88,20 @@ else
     echo ""
 
     # Auto-append ke rcfile jika bisa
-    if [ "$SHELL_NAME" = "zsh" ] || [ "$SHELL_NAME" = "bash" ]; then
+    if [ "$SHELL_NAME" = "fish" ]; then
+        # Fish shell: gunakan fish_add_path atau set -gx
+        mkdir -p "$(dirname "$RCFILE")"
+        if command -v fish &> /dev/null && fish -c "fish_add_path $INSTALL_DIR" 2>/dev/null; then
+            echo -e "  ${GREEN}✓${NC} PATH sudah diupdate via fish_add_path"
+        else
+            # Fallback: tulis ke config.fish
+            echo "" >> "$RCFILE"
+            echo "# Added by hojicha install.sh" >> "$RCFILE"
+            echo "set -gx PATH \$HOME/.local/bin \$PATH" >> "$RCFILE"
+            echo -e "  ${GREEN}✓${NC} PATH sudah diupdate di $RCFILE"
+            echo -e "  ${YELLOW}→${NC}  Jalankan: source $RCFILE"
+        fi
+    elif [ "$SHELL_NAME" = "zsh" ] || [ "$SHELL_NAME" = "bash" ]; then
         read -r -p "  Otomatis tambahkan ke $RCFILE? [y/N] " response
         if [[ "$response" =~ ^[Yy]$ ]]; then
             echo "" >> "$RCFILE"
