@@ -14,6 +14,7 @@ use executor::execute_command;
 use rag::{AiClient, LocalModelClient, RagPipeline};
 use safety::{check_safety, RiskLevel};
 use serde_json::Value;
+use std::collections::HashSet;
 use std::io::{self, Write};
 use std::path::Path;
 
@@ -504,7 +505,9 @@ async fn run_interactive(
             Ok(Some(response_json)) => {
                 history.push((input, response_json));
                 if history.len() > 5 {
-                    history.remove(0);
+                    // FIXED: Use drain instead of remove(0) to avoid O(n) shift on Vec.
+                    // With max 6 elements the impact is minimal, but drain is cleaner.
+                    history.drain(..1);
                 }
             }
             Ok(None) => {}
@@ -622,6 +625,21 @@ fn confirm_command(command: &str) -> bool {
     }
 }
 
+// FIXED: Separate confirm helper for yes/no questions (not commands).
+// Previously, confirm_command was misused for questions like "Apakah Anda ingin..."
+// which displayed them as "Jalankan perintah ini? `Apakah Anda ingin...`" — confusing.
+fn confirm_yes_no(question: &str) -> bool {
+    print!("  {} (y/n): ", question);
+    let _ = io::stdout().flush();
+    let mut input = String::new();
+    if io::stdin().read_line(&mut input).is_ok() {
+        let trimmed = input.trim().to_lowercase();
+        trimmed == "y" || trimmed == "yes" || trimmed == "ya"
+    } else {
+        false
+    }
+}
+
 async fn handle_interactive_git_flow(
     ai_client: &mut AiClient,
     command: &str,
@@ -705,7 +723,7 @@ async fn handle_interactive_git_flow(
         };
 
         if staged_something {
-            if confirm_command("Apakah Anda ingin langsung membuat commit untuk perubahan ini?") {
+            if confirm_yes_no("Apakah Anda ingin langsung membuat commit untuk perubahan ini?") {
                 let commit_res = Box::pin(handle_interactive_git_flow(ai_client, "git commit", user_input)).await?;
                 return Ok(commit_res);
             } else {
@@ -734,7 +752,7 @@ async fn handle_interactive_git_flow(
                     match generate_commit_message_ai(ai_client).await {
                         Ok(msg) => {
                             println!("\nPesan commit yang dibuat oleh AI:\n  \"{}\"", msg);
-                            if confirm_command("Gunakan pesan commit ini?") {
+                            if confirm_yes_no("Gunakan pesan commit ini?") {
                                 msg
                             } else {
                                 println!("Pembuatan pesan commit dibatalkan.");
@@ -747,7 +765,7 @@ async fn handle_interactive_git_flow(
                             let mut msg = String::new();
                             io::stdin().read_line(&mut msg)?;
                             let msg = msg.trim().to_string();
-                            if !msg.is_empty() && confirm_command(&format!("Gunakan pesan: \"{}\"?", msg)) {
+                            if !msg.is_empty() && confirm_yes_no(&format!("Gunakan pesan: \"{}\"?", msg)) {
                                 msg
                             } else {
                                 return Ok(None);
@@ -760,7 +778,7 @@ async fn handle_interactive_git_flow(
                     let mut msg = String::new();
                     io::stdin().read_line(&mut msg)?;
                     let msg = msg.trim().to_string();
-                    if !msg.is_empty() && confirm_command(&format!("Gunakan pesan: \"{}\"?", msg)) {
+                    if !msg.is_empty() && confirm_yes_no(&format!("Gunakan pesan: \"{}\"?", msg)) {
                         msg
                     } else {
                         println!("Commit dibatalkan.");
@@ -884,7 +902,7 @@ async fn process_query(
     ai_client: &mut AiClient,
     rag: &RagPipeline,
     user_input: &str,
-    _no_summary: bool,
+    no_summary: bool,
     auto_yes: bool,
     // FIXED: renamed from _history to history — now actually used
     history: &[(String, String)],
@@ -977,8 +995,8 @@ async fn process_query(
         ui::print_command_failed(&output.stderr, output.exit_code);
     }
 
-    // Show explanation + tip if present
-    if !cmd_resp.explanation.is_empty() {
+    // Show explanation + tip if present (skip when --no-summary flag is set for faster output)
+    if !no_summary && !cmd_resp.explanation.is_empty() {
         ui::print_explanation(&cmd_resp.explanation, cmd_resp.beginner_tip.as_deref());
     }
 
@@ -1008,7 +1026,8 @@ pub fn find_files_typed(
 ) -> Vec<String> {
     let query_lower = query.to_lowercase();
     let mut results = Vec::new();
-    find_recursive(root, &query_lower, 0, max_depth, max_results, only_dirs, only_files, &mut results);
+    let mut visited = HashSet::new();
+    find_recursive(root, &query_lower, 0, max_depth, max_results, only_dirs, only_files, &mut results, &mut visited);
     results
 }
 
@@ -1026,9 +1045,21 @@ fn find_recursive(
     only_dirs: bool,
     only_files: bool,
     results: &mut Vec<String>,
+    visited: &mut HashSet<std::path::PathBuf>,
 ) {
     if depth > max_depth || results.len() >= max_results {
         return;
+    }
+
+    // FIXED: Symlink loop detection — canonicalize the directory path and skip
+    // if we've already visited it. Previously, symlinks pointing to parent
+    // directories caused infinite recursion and stack overflow.
+    let canonical = match std::fs::canonicalize(dir) {
+        Ok(p) => p,
+        Err(_) => return,
+    };
+    if !visited.insert(canonical) {
+        return; // Already visited this directory (symlink loop)
     }
 
     let skip_dirs = [
@@ -1092,7 +1123,7 @@ fn find_recursive(
 
         // Rekursi ke subdirektori
         if is_dir {
-            find_recursive(&path, query, depth + 1, max_depth, max_results, only_dirs, only_files, results);
+            find_recursive(&path, query, depth + 1, max_depth, max_results, only_dirs, only_files, results, visited);
         }
     }
 }

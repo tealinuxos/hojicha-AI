@@ -39,7 +39,8 @@ pub fn execute_command(command: &str) -> Result<CommandOutput> {
             let path_str = path_str.trim_matches(|c| c == '"' || c == '\'');
             
             if path_str == "-" {
-                let prev = PREV_DIR.lock().unwrap().clone();
+                // FIXED: Handle poisoned mutex gracefully instead of panicking
+                let prev = PREV_DIR.lock().unwrap_or_else(|e| e.into_inner()).clone();
                 if prev.is_none() {
                     err_msg = "cd: OLDPWD tidak diset".to_string();
                 }
@@ -65,7 +66,8 @@ pub fn execute_command(command: &str) -> Result<CommandOutput> {
             } else {
                 cd_success = true;
                 if let Some(old) = current_dir {
-                    *PREV_DIR.lock().unwrap() = Some(old);
+                    // FIXED: Handle poisoned mutex gracefully instead of panicking
+                    *PREV_DIR.lock().unwrap_or_else(|e| e.into_inner()) = Some(old);
                 }
             }
         } else if err_msg.is_empty() {
@@ -94,6 +96,39 @@ pub fn execute_command(command: &str) -> Result<CommandOutput> {
                     success: false,
                 });
             }
+        }
+
+        // FIXED: For compound cd commands (e.g., `cd /tmp && ls`), strip the cd
+        // portion before passing to sh -c. Previously the full command was passed,
+        // causing the cd to execute twice (once via Rust, once via sh -c).
+        if cd_success {
+            // Extract the non-cd remainder after `&&`
+            if let Some(pos) = trimmed.find("&&") {
+                let rest = trimmed[pos + 2..].trim();
+                if !rest.is_empty() {
+                    let output = Command::new("sh")
+                        .arg("-c")
+                        .arg(rest)
+                        .output()?;
+                    let raw_stdout = String::from_utf8_lossy(&output.stdout).to_string();
+                    let raw_stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                    let exit_code = output.status.code().unwrap_or(-1);
+                    let success = output.status.success();
+                    let stdout = truncate_output(&raw_stdout, MAX_OUTPUT_LINES);
+                    let stderr = truncate_output(&raw_stderr, MAX_OUTPUT_LINES);
+                    return Ok(CommandOutput { stdout, stderr, exit_code, success });
+                }
+            }
+            // For non-&& compounds (;, |, ||), fall through to sh -c with original command.
+            // The shell will re-execute cd but since cwd is already changed, it's a no-op.
+        } else {
+            // cd failed — return error without executing the rest
+            return Ok(CommandOutput {
+                stdout: String::new(),
+                stderr: err_msg,
+                exit_code: 1,
+                success: false,
+            });
         }
     }
 

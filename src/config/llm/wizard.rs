@@ -136,7 +136,7 @@ pub async fn run_model_wizard(ai_client: &mut AiClient) -> Result<()> {
                             &mut config.groq,
                             &[
                                 "llama-3.3-70b-versatile",
-                                "openai/gpt-oss-120b",
+                                "llama-3.1-8b-instant",
                             ],
                             GROQ_BASE_URL,
                         )?;

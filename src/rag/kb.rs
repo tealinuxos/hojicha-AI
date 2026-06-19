@@ -62,11 +62,16 @@ impl KnowledgeBase {
                 Ok(kb) => {
                     // Check if cached DB is outdated (e.g. has fewer entries than the embedded version)
                     let default_entries: Vec<KbEntry> = serde_json::from_str(default_json).unwrap_or_default();
-                    if kb.entries.len() < default_entries.len()
-                        || std::fs::read_to_string(path).unwrap_or_default().contains("quit app \\\"Docker\\\"")
-                        || std::fs::read_to_string(path).unwrap_or_default().contains("machdep.xcpm.cpu_thermal_level")
-                        || !std::fs::read_to_string(path).unwrap_or_default().contains("saya berada dimana")
-                    {
+                    // FIXED: Read file content once instead of 3 separate reads
+                    let needs_update = if kb.entries.len() < default_entries.len() {
+                        true
+                    } else {
+                        let content = std::fs::read_to_string(path).unwrap_or_default();
+                        content.contains("quit app \\\"Docker\\\"")
+                            || content.contains("machdep.xcpm.cpu_thermal_level")
+                            || !content.contains("saya berada dimana")
+                    };
+                    if needs_update {
                         let _ = std::fs::write(path, default_json);
                         if let Ok(new_kb) = Self::load_from_file(path) {
                             return new_kb;

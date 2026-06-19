@@ -96,7 +96,12 @@ fn keyword_preproc<'a>(
             kw_tokens as f32 / tokens.len().max(1) as f32
         };
 
-        if coverage >= 0.4 {
+        // FIXED: Stricter thresholds to prevent over-matching on short queries.
+        // Previously a 1-word query could match with just 1 keyword hit (coverage 1.0),
+        // causing false positives (e.g., typing "cek" matching an unrelated entry).
+        let min_coverage = if tokens.len() <= 2 { 0.9 } else { 0.4 };
+        let min_matched = if tokens.len() <= 1 { 2 } else { 1 };
+        if coverage >= min_coverage && matched >= min_matched {
             if best.map_or(true, |(_, m)| matched > m) {
                 best = Some((entry, matched));
             }

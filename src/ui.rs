@@ -1,9 +1,6 @@
 /// UI module: Handles all terminal output formatting with colors and styles.
 use colored::Colorize;
-use std::io::{self, Write};
 use std::sync::atomic::{AtomicU8, Ordering};
-use std::thread;
-use std::time::Duration;
 
 static CURRENT_THEME: AtomicU8 = AtomicU8::new(0); // 0 = Dark (Green), 1 = Light (Cyan)
 
@@ -120,15 +117,10 @@ pub fn print_blocked_dangerous(reason: &str) {
 }
 
 pub fn print_no_command(explanation: &str) {
-    print!("  \x1b[38;2;200;200;200m");
-    let mut stdout = io::stdout();
-    for c in explanation.chars() {
-        print!("{}", c);
-        let _ = stdout.flush();
-        thread::sleep(Duration::from_millis(10));
-    }
-    print!("\x1b[0m");
-    println!();
+    // FIXED: Removed per-character 10ms typewriter effect that caused slow
+    // output for long explanations (e.g., 200 chars = 2 seconds delay).
+    // Now prints instantly while preserving the same styling.
+    println!("  \x1b[38;2;200;200;200m{}\x1b[0m", explanation);
 }
 
 pub fn print_executing(command: &str) {
