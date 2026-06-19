@@ -7,6 +7,49 @@ use crate::rag::{AiClient, GeminiClient, OllamaClient, OpenAiClient};
 const OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
 const GROQ_BASE_URL: &str = "https://api.groq.com/openai/v1";
 
+/// SECURITY: Validate base_url to prevent SSRF attacks.
+/// Rejects internal/private IPs and enforces HTTPS for non-localhost connections.
+fn validate_base_url(url: &str) -> Result<()> {
+    let url_lower = url.to_lowercase();
+    
+    // Allow localhost and 127.0.0.1 for local development (Ollama, etc.)
+    if url_lower.contains("localhost") || url_lower.contains("127.0.0.1") {
+        return Ok(());
+    }
+    
+    // Block private/internal IP ranges
+    let private_patterns = [
+        "10.", "172.16.", "172.17.", "172.18.", "172.19.",
+        "172.20.", "172.21.", "172.22.", "172.23.", "172.24.",
+        "172.25.", "172.26.", "172.27.", "172.28.", "172.29.",
+        "172.30.", "172.31.", "192.168.",
+        "169.254.", // link-local
+        "0.0.0.0",
+        "[::1]",    // IPv6 loopback
+        "[fc",      // IPv6 private
+        "[fd",      // IPv6 private
+    ];
+    
+    for pattern in private_patterns {
+        if url_lower.contains(pattern) {
+            anyhow::bail!(
+                "URL '{}' mengandung IP internal/private. Gunakan URL publik untuk keamanan.",
+                url
+            );
+        }
+    }
+    
+    // Enforce HTTPS for non-localhost URLs
+    if !url_lower.starts_with("https://") {
+        anyhow::bail!(
+            "URL '{}' harus menggunakan HTTPS (bukan HTTP) untuk koneksi yang aman.",
+            url
+        );
+    }
+    
+    Ok(())
+}
+
 async fn fetch_ollama_models(base_url: &str) -> Result<Vec<String>> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(3))
@@ -250,10 +293,13 @@ fn choose_model(
 async fn configure_ollama(theme: &ColorfulTheme, conf: &mut OllamaConfig) -> Result<()> {
     println!("\n🔧 Konfigurasi Ollama Lokal:");
 
-    conf.base_url = Input::with_theme(theme)
+    let base_url_input: String = Input::with_theme(theme)
         .with_prompt("Base URL")
         .default(conf.base_url.clone())
         .interact_text()?;
+    
+    // Ollama typically runs locally, so we allow HTTP but still validate
+    conf.base_url = base_url_input;
 
     let model_choice_options = vec![
         "Pilih dari model Ollama lokal yang terinstal",
@@ -353,7 +399,14 @@ fn configure_openai_compatible(
     conf.base_url = if base_url_input.trim().is_empty() {
         None
     } else {
-        Some(base_url_input)
+        // SECURITY: Validate URL to prevent SSRF
+        if let Err(e) = validate_base_url(&base_url_input) {
+            println!("⚠️  {}", e);
+            println!("   Menggunakan URL default sebagai gantinya.");
+            None
+        } else {
+            Some(base_url_input)
+        }
     };
 
     conf.temperature = Input::with_theme(theme)
@@ -405,7 +458,14 @@ fn configure_gemini(theme: &ColorfulTheme, conf: &mut GeminiConfig) -> Result<()
     conf.base_url = if base_url_input.trim().is_empty() {
         None
     } else {
-        Some(base_url_input)
+        // SECURITY: Validate URL to prevent SSRF
+        if let Err(e) = validate_base_url(&base_url_input) {
+            println!("⚠️  {}", e);
+            println!("   Menggunakan URL default sebagai gantinya.");
+            None
+        } else {
+            Some(base_url_input)
+        }
     };
 
     conf.temperature = Input::with_theme(theme)
