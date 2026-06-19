@@ -674,7 +674,10 @@ async fn handle_interactive_git_flow(
                 1 => {
                     if let Ok(Some(files)) = run_interactive_staging() {
                         if !files.is_empty() {
-                            let add_cmd = format!("git add {}", files.iter().map(|f| format!("'{}'", f)).collect::<Vec<_>>().join(" "));
+                            // SECURITY: Escape single quotes in filenames to prevent
+                            // command injection. A file named "'; rm -rf /; '" would
+                            // otherwise break out of the quoting.
+                            let add_cmd = format!("git add {}", files.iter().map(|f| format!("'{}'", f.replace("'", "'\\''"))).collect::<Vec<_>>().join(" "));
                             if confirm_command(&add_cmd) {
                                 execute_command(&add_cmd)?;
                                 println!("File terpilih telah di-stage.");
@@ -698,7 +701,8 @@ async fn handle_interactive_git_flow(
         let staged_something = if command.trim() == "git add" {
             if let Ok(Some(files)) = run_interactive_staging() {
                 if !files.is_empty() {
-                    let add_cmd = format!("git add {}", files.iter().map(|f| format!("'{}'", f)).collect::<Vec<_>>().join(" "));
+                    // SECURITY: Escape single quotes in filenames
+                    let add_cmd = format!("git add {}", files.iter().map(|f| format!("'{}'", f.replace("'", "'\\''"))).collect::<Vec<_>>().join(" "));
                     if confirm_command(&add_cmd) {
                         execute_command(&add_cmd)?;
                         println!("File terpilih telah di-stage.");
