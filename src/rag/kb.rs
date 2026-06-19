@@ -16,6 +16,9 @@ pub enum Category {
     System,
     Text,
     Docker,
+    Git,
+    #[serde(rename = "AI Skills")]
+    AiSkills,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

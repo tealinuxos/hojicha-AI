@@ -709,6 +709,7 @@
     "example": "open -a Docker",
     "beginner_tip": "Docker Desktop di macOS berjalan sebagai aplikasi desktop, gunakan open -a Docker untuk meluncurkannya"
   },
+  {
     "id": "docker-stop",
     "command": "osascript -e 'quit app \"Docker Desktop\"'",
     "description": "Menghentikan/menutup aplikasi Docker Desktop pada macOS",
