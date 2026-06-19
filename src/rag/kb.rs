@@ -60,6 +60,9 @@ impl KnowledgeBase {
         if path.exists() {
             match Self::load_from_file(path) {
                 Ok(kb) => {
+                    // SECURITY: Warn when loading external KB file that could be tampered
+                    eprintln!("ℹ️  Memuat knowledge base dari file eksternal: {}", path.display());
+                    
                     // Check if cached DB is outdated (e.g. has fewer entries than the embedded version)
                     let default_entries: Vec<KbEntry> = serde_json::from_str(default_json).unwrap_or_default();
                     // FIXED: Read file content once instead of 3 separate reads
@@ -77,6 +80,15 @@ impl KnowledgeBase {
                             return new_kb;
                         }
                     }
+                    
+                    // SECURITY: Log any entries with Dangerous risk level
+                    let dangerous_count = kb.entries.iter()
+                        .filter(|e| matches!(e.risk, RiskTag::Dangerous))
+                        .count();
+                    if dangerous_count > 0 {
+                        eprintln!("⚠️  KB eksternal mengandung {} entri berbahaya (Dangerous). Pastikan file tidak dimodifikasi.", dangerous_count);
+                    }
+                    
                     return kb;
                 }
                 Err(e) => {
