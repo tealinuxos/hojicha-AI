@@ -419,7 +419,7 @@ async fn process_query(
     let cmd_resp = match rag.run(ai_client, user_input, history).await {
         Ok(r) => r,
         Err(e) => {
-            ui::print_error(&format!("AI error: {}", e));
+            ui::print_error(&format!("AI error: {:#}", e));
             return Ok(None);
         }
     };

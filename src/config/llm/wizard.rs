@@ -77,7 +77,8 @@ pub async fn run_model_wizard(ai_client: &mut AiClient) -> Result<()> {
 
         match selection {
             0 => {
-                let providers = provider_menu();
+                let mut providers = provider_menu();
+                providers.push("Kembali");
                 let default = provider_index(config.active_api_provider);
                 let prov_selection = Select::with_theme(&theme)
                     .with_prompt("Pilih Provider Aktif baru:")
@@ -85,8 +86,10 @@ pub async fn run_model_wizard(ai_client: &mut AiClient) -> Result<()> {
                     .items(&providers)
                     .interact()?;
 
-                config.active_api_provider = provider_from_index(prov_selection);
-                println!("✅ Provider aktif diubah!");
+                if prov_selection < 5 {
+                    config.active_api_provider = provider_from_index(prov_selection);
+                    println!("✅ Provider aktif diubah!");
+                }
             }
             1 => {
                 let mut providers_to_config = provider_menu();
@@ -120,9 +123,8 @@ pub async fn run_model_wizard(ai_client: &mut AiClient) -> Result<()> {
                             "OpenRouter",
                             &mut config.openrouter,
                             &[
-                                "openai/gpt-4o-mini",
-                                "google/gemini-2.5-flash",
-                                "anthropic/claude-sonnet-4",
+                                "openai/gpt-oss-120b:free",
+                                "google/gemma-4-31b-it:free",
                             ],
                             OPENROUTER_BASE_URL,
                         )?;
@@ -133,9 +135,8 @@ pub async fn run_model_wizard(ai_client: &mut AiClient) -> Result<()> {
                             "Groq",
                             &mut config.groq,
                             &[
-                                "llama-3.1-8b-instant",
                                 "llama-3.3-70b-versatile",
-                                "llama-3.1-70b-versatile",
+                                "openai/gpt-oss-120b",
                             ],
                             GROQ_BASE_URL,
                         )?;
