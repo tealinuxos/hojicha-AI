@@ -522,6 +522,16 @@ async fn run_interactive(
             let _ = std::fs::create_dir_all(parent);
         }
         let _ = rl.save_history(path);
+        
+        // SECURITY: Set restrictive permissions (0o600) on history file
+        // to prevent other users from reading sensitive command history
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if let Err(e) = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)) {
+                eprintln!("⚠️  Gagal mengatur permission history file: {}", e);
+            }
+        }
     }
 
     Ok(())
