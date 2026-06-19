@@ -83,7 +83,7 @@ const SHELL_COMPOSITION_PATTERNS: &[&str] = &[
     r"\$\(",                   // subshell: $(...)
     r"`",                      // backtick command substitution
     r"\|\s*(ba)?sh",           // pipe to shell: | sh, | bash
-    r"&&\s*rm\s",              // chained delete
+    r"&&",                     // SECURITY: block ALL && chaining (not just && rm)
     r"\|\s*eval",              // pipe to eval
     r">\s*/etc/",              // write to system config
     r">\s*/usr/",              // write to system binaries
