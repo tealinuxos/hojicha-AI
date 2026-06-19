@@ -3,6 +3,7 @@ use anyhow::Result;
 use std::process::Command;
 use std::sync::Mutex;
 use std::path::PathBuf;
+use crate::safety::{check_safety, RiskLevel};
 
 static PREV_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
 
@@ -106,6 +107,18 @@ pub fn execute_command(command: &str) -> Result<CommandOutput> {
             if let Some(pos) = trimmed.find("&&") {
                 let rest = trimmed[pos + 2..].trim();
                 if !rest.is_empty() {
+                    // SECURITY: Run safety check on the remainder command before
+                    // passing to sh -c. Previously, `cd /tmp && <malicious>` would
+                    // execute <malicious> without any safety screening.
+                    let safety = check_safety(rest);
+                    if safety.risk == RiskLevel::Dangerous {
+                        return Ok(CommandOutput {
+                            stdout: String::new(),
+                            stderr: format!("❌ Blocked: {}", safety.reason),
+                            exit_code: 1,
+                            success: false,
+                        });
+                    }
                     let output = Command::new("sh")
                         .arg("-c")
                         .arg(rest)
