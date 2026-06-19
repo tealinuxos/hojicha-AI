@@ -954,20 +954,27 @@ async fn process_query(
 
     match safety.risk {
         RiskLevel::Dangerous => {
+            // SECURITY: Dangerous commands are ALWAYS blocked, even with --yes.
+            // The --yes flag only auto-accepts Moderate commands, never Dangerous.
             ui::print_blocked_dangerous(&safety.reason);
             return Ok(None);
         }
         RiskLevel::Moderate => {
             ui::print_confirm_moderate(&safety.reason, &command);
-            io::stdout().flush()?;
-            let mut confirm = String::new();
-            io::stdin().read_line(&mut confirm)?;
-            let confirm = confirm.trim().to_lowercase();
-            match confirm.as_str() {
-                "y" | "yes" | "ya" => {}
-                _ => {
-                    ui::print_cancelled();
-                    return Ok(None);
+            if auto_yes {
+                // --yes flag: auto-accept Moderate but still show what was run
+                println!("  (--yes) Otomatis menyetujui perintah Moderate.");
+            } else {
+                io::stdout().flush()?;
+                let mut confirm = String::new();
+                io::stdin().read_line(&mut confirm)?;
+                let confirm = confirm.trim().to_lowercase();
+                match confirm.as_str() {
+                    "y" | "yes" | "ya" => {}
+                    _ => {
+                        ui::print_cancelled();
+                        return Ok(None);
+                    }
                 }
             }
         }
