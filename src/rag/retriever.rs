@@ -1,5 +1,5 @@
-/// Hybrid retriever: fuses BM25 (keyword) + TF-IDF (semantic) scores
-/// using Reciprocal Rank Fusion (RRF).
+//! Hybrid retriever: fuses BM25 (keyword) + TF-IDF (semantic) scores
+//! using Reciprocal Rank Fusion (RRF).
 
 use crate::rag::bm25::BM25Index;
 use crate::rag::embedder::TfIdfIndex;

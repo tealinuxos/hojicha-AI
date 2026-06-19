@@ -11,10 +11,13 @@ pub struct GroqConfig {
 
 impl Default for GroqConfig {
     fn default() -> Self {
-        let mut inner = OpenAiConfig::default();
-        inner.base_url = Some("https://api.groq.com/openai/v1".to_string());
-        inner.model = "llama-3.1-8b-instant".to_string();
-        Self { inner }
+        Self {
+            inner: OpenAiConfig {
+                base_url: Some("https://api.groq.com/openai/v1".to_string()),
+                model: "llama-3.1-8b-instant".to_string(),
+                ..Default::default()
+            },
+        }
     }
 }
 

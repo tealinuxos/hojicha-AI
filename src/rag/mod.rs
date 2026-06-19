@@ -16,4 +16,4 @@ pub use gemini::GeminiClient;
 pub use ollama::OllamaClient;
 pub use openai::OpenAiClient;
 pub use pipeline::RagPipeline;
-pub use prompt::{followup_prompt, output_summary_prompt, system_prompt};
+pub use prompt::system_prompt;

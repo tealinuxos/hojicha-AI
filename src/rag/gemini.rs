@@ -86,11 +86,12 @@ impl GeminiClient {
         let base_url = self.config.base_url.as_deref()
             .unwrap_or("https://generativelanguage.googleapis.com");
 
+        // FIXED: Use header-based auth instead of URL query parameter.
+        // URL query parameters are logged in server access logs, exposing the API key.
         let url = format!(
-            "{}/v1beta/models/{}:generateContent?key={}",
+            "{}/v1beta/models/{}:generateContent",
             base_url.trim_end_matches('/'),
             self.config.model,
-            api_key
         );
 
         let request = GeminiRequest {
@@ -111,6 +112,7 @@ impl GeminiClient {
 
         let res = self.client.post(&url)
             .header("Content-Type", "application/json")
+            .header("x-goog-api-key", api_key)
             .json(&request)
             .send()
             .await

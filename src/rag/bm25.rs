@@ -1,5 +1,5 @@
-/// BM25 (Best Match 25) full-text retrieval — pure Rust, no external deps.
-/// Standard parameters: k1=1.5, b=0.75
+//! BM25 (Best Match 25) full-text retrieval — pure Rust, no external deps.
+//! Standard parameters: k1=1.5, b=0.75
 
 use std::collections::HashMap;
 use crate::rag::kb::{KbEntry, KnowledgeBase};

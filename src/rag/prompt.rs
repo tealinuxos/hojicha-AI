@@ -1,4 +1,4 @@
-/// Prompt builder: Constructs system and user prompts for the LLM.
+//! Prompt builder: Constructs system and user prompts for the LLM.
 
 /// System prompt that defines the assistant's persona and behavior
 pub fn system_prompt() -> String {
@@ -44,41 +44,4 @@ CONTOH PENCOCOKAN KEYWORD → PERINTAH:
 - User: "berapa suhu cpu" → keyword "suhu", "cpu temp", "thermal" cocok → perintah: `cat /sys/class/thermal/thermal_zone0/temp`
 
 PENTING: Jika keyword dari input pengguna cocok dengan keyword pada referensi perintah, gunakan perintah tersebut sebagai jawaban. Prioritaskan kecocokan keyword yang paling spesifik."#.to_string()
-}
-
-/// Build the prompt for summarizing command output
-pub fn output_summary_prompt(command: &str, output: &str, success: bool) -> String {
-    let status = if success { "berhasil" } else { "gagal" };
-    format!(
-        r#"Perintah `{}` telah {} dijalankan.
-
-Output terminal:
-```
-{}
-```
-
-Jelaskan output di atas dalam bahasa Indonesia yang sederhana untuk pemula Linux.
-Format respons JSON:
-{{
-  "summary": "<penjelasan singkat output dalam 2-3 kalimat bahasa Indonesia>",
-  "key_info": "<informasi terpenting dari output ini>",
-  "next_suggestion": "<saran langkah berikutnya yang mungkin berguna, atau null>"
-}}
-
-Hanya kembalikan JSON, tidak ada teks lain."#,
-        command,
-        status,
-        output
-    )
-}
-
-/// Build a conversational follow-up prompt
-pub fn followup_prompt(history: &[(String, String)], user_input: &str) -> String {
-    let mut prompt = system_prompt();
-    prompt.push_str("\n\nRiwayat percakapan:\n");
-    for (user, assistant) in history.iter().take(5) {
-        prompt.push_str(&format!("User: {}\nHojicha: {}\n\n", user, assistant));
-    }
-    prompt.push_str(&format!("User: {}\nHojicha:", user_input));
-    prompt
 }

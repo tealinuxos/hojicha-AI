@@ -16,20 +16,15 @@ use self::ollama::OllamaConfig;
 use self::openai::OpenAiConfig;
 use self::openrouter::OpenRouterConfig;
 
-#[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ApiProvider {
+    #[default]
     Ollama,
     Openai,
     Gemini,
     Openrouter,
     Groq,
-}
-
-impl Default for ApiProvider {
-    fn default() -> Self {
-        Self::Ollama
-    }
 }
 
 impl ApiProvider {
@@ -123,7 +118,9 @@ impl LlmConfig {
         Ok(config)
     }
 
-    /// Save the current configuration to the config file
+    /// Save the current configuration to the config file.
+    /// Sets file permissions to 600 (owner read/write only) since the config
+    /// contains sensitive API keys.
     pub fn save(&self) -> Result<()> {
         let path = Self::default_path()?;
         if let Some(parent) = path.parent() {
@@ -132,6 +129,18 @@ impl LlmConfig {
         let content = serde_json::to_string_pretty(self)
             .context("Gagal mengonversi konfigurasi LLM ke JSON")?;
         fs::write(&path, content).context("Gagal menulis file konfigurasi LLM")?;
+
+        // SECURITY: Set restrictive file permissions (owner read/write only)
+        // since the config contains API keys. Without this, other users on
+        // shared systems could read the keys.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perms = std::fs::Permissions::from_mode(0o600);
+            fs::set_permissions(&path, perms)
+                .context("Gagal mengatur permission file konfigurasi")?;
+        }
+
         Ok(())
     }
 }

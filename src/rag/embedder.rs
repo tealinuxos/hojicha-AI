@@ -1,6 +1,6 @@
-/// Lightweight TF-IDF vector embedder — pure Rust.
-/// Builds a vocabulary from KB corpus, converts queries and entries
-/// to sparse TF-IDF vectors, computes cosine similarity.
+//! Lightweight TF-IDF vector embedder — pure Rust.
+//! Builds a vocabulary from KB corpus, converts queries and entries
+//! to sparse TF-IDF vectors, computes cosine similarity.
 
 use std::collections::HashMap;
 use crate::rag::kb::KnowledgeBase;
@@ -67,6 +67,7 @@ impl TfIdfIndex {
             let mut vec: Vec<(usize, f32)> = tf.into_iter()
                 .map(|(idx, count)| (idx, (count / len) * idf[idx]))
                 .collect();
+            vec.sort_by_key(|&(idx, _)| idx);
             l2_normalize_sparse(&mut vec);
             vec
         }).collect();
@@ -96,6 +97,7 @@ impl TfIdfIndex {
         let mut vec: Vec<(usize, f32)> = tf.into_iter()
             .map(|(idx, count)| (idx, (count / len) * self.idf[idx]))
             .collect();
+        vec.sort_by_key(|&(idx, _)| idx);
         l2_normalize_sparse(&mut vec);
         vec
     }
@@ -119,7 +121,7 @@ impl TfIdfIndex {
     }
 }
 
-fn l2_normalize_sparse(vec: &mut Vec<(usize, f32)>) {
+fn l2_normalize_sparse(vec: &mut [(usize, f32)]) {
     let norm: f32 = vec.iter().map(|(_, w)| w * w).sum::<f32>().sqrt();
     if norm > 1e-9 {
         for (_, w) in vec.iter_mut() {
@@ -129,12 +131,26 @@ fn l2_normalize_sparse(vec: &mut Vec<(usize, f32)>) {
 }
 
 fn dot_sparse(a: &[(usize, f32)], b: &[(usize, f32)]) -> f32 {
-    // Hash-based dot product for small sparse vectors
+    // FIXED: Two-pointer merge instead of rebuilding a HashMap from `b` on every call.
+    // Both sparse vectors are sorted by index (explicitly via sort_by_key during build
+    // and embed_query). This avoids O(n) HashMap allocation per call, reducing to
+    // a simple O(n+m) merge with zero allocations.
     let mut dot = 0.0f32;
-    let b_map: HashMap<usize, f32> = b.iter().cloned().collect();
-    for &(idx, wa) in a {
-        if let Some(&wb) = b_map.get(&idx) {
-            dot += wa * wb;
+    let mut i = 0usize;
+    let mut j = 0usize;
+    while i < a.len() && j < b.len() {
+        match a[i].0.cmp(&b[j].0) {
+            std::cmp::Ordering::Equal => {
+                dot += a[i].1 * b[j].1;
+                i += 1;
+                j += 1;
+            }
+            std::cmp::Ordering::Less => {
+                i += 1;
+            }
+            std::cmp::Ordering::Greater => {
+                j += 1;
+            }
         }
     }
     dot

@@ -11,10 +11,13 @@ pub struct OpenRouterConfig {
 
 impl Default for OpenRouterConfig {
     fn default() -> Self {
-        let mut inner = OpenAiConfig::default();
-        inner.base_url = Some("https://openrouter.ai/api/v1".to_string());
-        inner.model = "openai/gpt-oss-120b:free".to_string();
-        Self { inner }
+        Self {
+            inner: OpenAiConfig {
+                base_url: Some("https://openrouter.ai/api/v1".to_string()),
+                model: "openai/gpt-oss-120b:free".to_string(),
+                ..Default::default()
+            },
+        }
     }
 }
 

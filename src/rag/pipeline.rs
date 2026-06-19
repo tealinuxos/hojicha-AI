@@ -1,5 +1,5 @@
-/// Full RAG pipeline orchestrator.
-/// Flow: rewrite (keyword-aware) → retrieve → rerank → build context with keywords → LLM
+//! Full RAG pipeline orchestrator.
+//! Flow: rewrite (keyword-aware) → retrieve → rerank → build context with keywords → LLM
 
 use anyhow::Result;
 use std::collections::HashMap;
@@ -29,10 +29,12 @@ impl RagPipeline {
 
     /// Run the full RAG pipeline for a given query.
     /// Returns a CommandResponse enriched with KB context.
+    /// `history` is the conversation history for multi-turn context.
     pub async fn run(
         &self,
         ai_client: &mut AiClient,
         user_input: &str,
+        history: &[(String, String)],
     ) -> Result<CommandResponse> {
         // 1. Rewrite query using KB keyword synonym expansion
         let rewritten = self.rewrite_query(user_input);
@@ -58,8 +60,26 @@ impl RagPipeline {
         // 6. Build RAG-augmented system prompt (with keyword-driven few-shot)
         let system = build_rag_system_prompt(&context);
 
-        // 7. Call LLM
-        let response = ai_client.nl_to_command(&system, user_input).await?;
+        // 7. Build user input with conversation history for multi-turn context
+        // FIXED: Previously, history was accepted as a parameter but never passed
+        // to the LLM, so every query was treated as a fresh conversation.
+        let augmented_input = if history.is_empty() {
+            user_input.to_string()
+        } else {
+            let mut input_with_history = String::new();
+            // Include last 5 turns of conversation history
+            for (user_msg, assistant_msg) in history.iter().rev().take(5).rev() {
+                input_with_history.push_str(&format!(
+                    "[Previous] User: {}\n[Previous] Assistant: {}\n\n",
+                    user_msg, assistant_msg
+                ));
+            }
+            input_with_history.push_str(&format!("[Current] User: {}", user_input));
+            input_with_history
+        };
+
+        // 8. Call LLM
+        let response = ai_client.nl_to_command(&system, &augmented_input).await?;
         Ok(response)
     }
 
@@ -160,4 +180,3 @@ fn build_rag_system_prompt(context: &str) -> String {
     }
     format!("{}\n\n---\n{}", base, context)
 }
-

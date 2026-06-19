@@ -19,11 +19,31 @@ impl ColorExt for str {
     }
 }
 
+/// Known closing think-tag variants that LLMs may emit.
+/// We search for all of them and strip everything up to and including the last one found.
+const THINK_CLOSE_TAGS: &[&str] = &[
+    "<\x2fthink>",
+    "<\x2fthinking>",
+];
+
 pub fn extract_json(text: &str) -> String {
-    let stripped = if let Some(think_end) = text.find("</think>") {
-        text[think_end + 8..].trim()
-    } else {
-        text.trim()
+    // FIXED: Search for multiple think-tag variants and use the actual tag length
+    // instead of a hardcoded +8 offset.
+    let stripped = {
+        let mut best_end = 0usize;
+        for tag in THINK_CLOSE_TAGS {
+            if let Some(pos) = text.find(tag) {
+                let end = pos + tag.len();
+                if end > best_end {
+                    best_end = end;
+                }
+            }
+        }
+        if best_end > 0 {
+            text[best_end..].trim()
+        } else {
+            text.trim()
+        }
     };
 
     let mut raw_json = if let Some(start) = stripped.find("```json") {

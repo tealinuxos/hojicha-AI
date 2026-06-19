@@ -231,11 +231,14 @@ async fn process_query(
     user_input: &str,
     _no_summary: bool,
     auto_yes: bool,
-    _history: &[(String, String)],
+    // FIXED: renamed from _history to history — now actually used
+    history: &[(String, String)],
 ) -> Result<Option<String>> {
     // ── Step 1: RAG Pipeline → LLM ──────────────────────────────
     ui::print_thinking();
-    let cmd_resp = match rag.run(ai_client, user_input).await {
+    // FIXED: Pass conversation history to the RAG pipeline so the LLM
+    // has multi-turn context. Previously history was accepted but ignored.
+    let cmd_resp = match rag.run(ai_client, user_input, history).await {
         Ok(r) => r,
         Err(e) => {
             ui::print_error(&format!("AI error: {}", e));
@@ -311,6 +314,13 @@ async fn process_query(
         ui::print_explanation(&cmd_resp.explanation, cmd_resp.beginner_tip.as_deref());
     }
 
-    let history_entry = serde_json::to_string(&cmd_resp.command).unwrap_or_default();
+    // FIXED: Store the full response (command + explanation) for history context,
+    // not just the JSON-serialized command string. Previously stored
+    // `serde_json::to_string(&cmd_resp.command)` which lost all context.
+    let history_entry = format!(
+        "command: {}, explanation: {}",
+        command,
+        cmd_resp.explanation
+    );
     Ok(Some(history_entry))
 }

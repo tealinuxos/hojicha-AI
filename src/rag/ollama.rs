@@ -52,7 +52,7 @@ impl OllamaClient {
 
     pub async fn ping(&self) -> bool {
         self.client
-            .get(&format!(
+            .get(format!(
                 "{}/api/tags",
                 self.config.base_url.trim_end_matches('/')
             ))

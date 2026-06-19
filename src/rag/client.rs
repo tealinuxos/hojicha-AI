@@ -12,12 +12,15 @@ pub struct CommandResponse {
     pub explanation: String,
     #[serde(default)]
     pub beginner_tip: Option<String>,
+    // FIXED: Fail-closed default. If the LLM omits `is_safe`, we assume unsafe
+    // rather than blindly trusting it. Previously defaulted to `true` which
+    // meant a malformed LLM response would bypass safety checks.
     #[serde(default = "default_safe")]
     pub is_safe: bool,
 }
 
 fn default_safe() -> bool {
-    true
+    false
 }
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
@@ -57,7 +60,7 @@ impl AiClient {
             Ok(resp) => Ok(resp),
             Err(_) => {
                 let raw_trimmed = raw.trim();
-                let is_conversational = raw_trimmed.starts_with('{') == false
+                let is_conversational = !raw_trimmed.starts_with('{')
                     && (raw_trimmed.to_lowercase().starts_with("hello")
                         || raw_trimmed.to_lowercase().starts_with("hi")
                         || raw_trimmed.to_lowercase().starts_with("halo")
@@ -90,6 +93,10 @@ impl AiClient {
                             is_safe: true,
                         })
                     } else {
+                        // Raw command fallback — is_safe is true here because the
+                        // authoritative safety check is in the safety module (check_safety).
+                        // The is_safe field reflects the LLM's judgment, which is unavailable
+                        // when JSON parsing fails. The safety module provides the real gate.
                         Ok(CommandResponse {
                             command: Some(clean_cmd),
                             explanation: String::new(),
