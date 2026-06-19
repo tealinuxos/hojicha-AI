@@ -1,8 +1,9 @@
 use anyhow::{Context, Result};
+use colored::Colorize;
 use dialoguer::{theme::ColorfulTheme, Input, Password, Select};
 
 use crate::config::{ApiProvider, GeminiConfig, LlmConfig, OllamaConfig, OpenAiConfig};
-use crate::rag::{AiClient, GeminiClient, OllamaClient, OpenAiClient};
+use crate::rag::{AiClient, GeminiClient, LocalModelClient, OllamaClient, OpenAiClient};
 
 const OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
 const GROQ_BASE_URL: &str = "https://api.groq.com/openai/v1";
@@ -110,6 +111,10 @@ async fn fetch_ollama_models(base_url: &str) -> Result<Vec<String>> {
 /// Helper function to load AI client based on configuration.
 pub async fn load_ai_client_from_config(config: &LlmConfig) -> Result<AiClient> {
     Ok(match config.active_api_provider {
+        ApiProvider::Native => {
+            println!("{}", "⏳ Memuat model built-in Native (Qwen2.5-0.5B-Instruct, offline)...".yellow());
+            AiClient::Local(Box::new(LocalModelClient::load_built_in()?))
+        }
         ApiProvider::Ollama => AiClient::Ollama(OllamaClient::new(config.ollama.clone())),
         ApiProvider::Openai => AiClient::OpenAi(OpenAiClient::new(config.openai.clone())),
         ApiProvider::Gemini => AiClient::Gemini(GeminiClient::new(config.gemini.clone())),
@@ -156,7 +161,7 @@ pub async fn run_model_wizard(ai_client: &mut AiClient) -> Result<()> {
                     .items(&providers)
                     .interact()?;
 
-                if prov_selection < 5 {
+                if prov_selection < 6 {
                     config.active_api_provider = provider_from_index(prov_selection);
                     println!("✅ Provider aktif diubah!");
                 }
@@ -172,10 +177,14 @@ pub async fn run_model_wizard(ai_client: &mut AiClient) -> Result<()> {
                     .interact()?;
 
                 match provider_from_index(config_selection) {
-                    ApiProvider::Ollama if config_selection < 5 => {
+                    ApiProvider::Native if config_selection < 6 => {
+                        println!("\nℹ️  Native (Built-in Qwen2.5-0.5B-Instruct) tidak memerlukan konfigurasi.");
+                        println!("   Model ini berjalan 100% offline tanpa API key atau URL.");
+                    }
+                    ApiProvider::Ollama if config_selection < 6 => {
                         configure_ollama(&theme, &mut config.ollama).await?;
                     }
-                    ApiProvider::Openai if config_selection < 5 => {
+                    ApiProvider::Openai if config_selection < 6 => {
                         configure_openai_compatible(
                             &theme,
                             "OpenAI",
@@ -184,10 +193,10 @@ pub async fn run_model_wizard(ai_client: &mut AiClient) -> Result<()> {
                             "https://api.openai.com/v1",
                         ).await?;
                     }
-                    ApiProvider::Gemini if config_selection < 5 => {
+                    ApiProvider::Gemini if config_selection < 6 => {
                         configure_gemini(&theme, &mut config.gemini).await?;
                     }
-                    ApiProvider::Openrouter if config_selection < 5 => {
+                    ApiProvider::Openrouter if config_selection < 6 => {
                         configure_openai_compatible(
                             &theme,
                             "OpenRouter",
@@ -199,7 +208,7 @@ pub async fn run_model_wizard(ai_client: &mut AiClient) -> Result<()> {
                             OPENROUTER_BASE_URL,
                         ).await?;
                     }
-                    ApiProvider::Groq if config_selection < 5 => {
+                    ApiProvider::Groq if config_selection < 6 => {
                         configure_openai_compatible(
                             &theme,
                             "Groq",
@@ -245,6 +254,7 @@ pub async fn run_model_wizard(ai_client: &mut AiClient) -> Result<()> {
 
 fn active_provider_desc(config: &LlmConfig) -> String {
     match config.active_api_provider {
+        ApiProvider::Native => "Native Built-in (Qwen2.5-0.5B-Instruct, offline)".to_string(),
         ApiProvider::Ollama => format!("Ollama Lokal (model: {})", config.ollama.model),
         ApiProvider::Openai => format!("OpenAI (model: {})", config.openai.model),
         ApiProvider::Gemini => format!("Gemini (model: {})", config.gemini.model),
@@ -254,25 +264,28 @@ fn active_provider_desc(config: &LlmConfig) -> String {
 }
 
 fn provider_menu() -> Vec<&'static str> {
-    vec!["Ollama Lokal", "OpenAI", "Gemini", "OpenRouter", "Groq"]
+    vec!["Native (Built-in Offline)", "Ollama Lokal", "OpenAI", "Gemini", "OpenRouter", "Groq"]
 }
 
 fn provider_index(provider: ApiProvider) -> usize {
     match provider {
-        ApiProvider::Ollama => 0,
-        ApiProvider::Openai => 1,
-        ApiProvider::Gemini => 2,
-        ApiProvider::Openrouter => 3,
-        ApiProvider::Groq => 4,
+        ApiProvider::Native => 0,
+        ApiProvider::Ollama => 1,
+        ApiProvider::Openai => 2,
+        ApiProvider::Gemini => 3,
+        ApiProvider::Openrouter => 4,
+        ApiProvider::Groq => 5,
     }
 }
 
 fn provider_from_index(index: usize) -> ApiProvider {
     match index {
-        1 => ApiProvider::Openai,
-        2 => ApiProvider::Gemini,
-        3 => ApiProvider::Openrouter,
-        4 => ApiProvider::Groq,
+        0 => ApiProvider::Native,
+        1 => ApiProvider::Ollama,
+        2 => ApiProvider::Openai,
+        3 => ApiProvider::Gemini,
+        4 => ApiProvider::Openrouter,
+        5 => ApiProvider::Groq,
         _ => ApiProvider::Ollama,
     }
 }

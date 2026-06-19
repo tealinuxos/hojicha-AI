@@ -68,7 +68,8 @@ fn is_dynamic_command(command: &str) -> bool {
     cmd == "brew uninstall" ||
     cmd == "brew search" ||
     cmd.ends_with("grep") ||
-    cmd.ends_with("-name")
+    cmd.ends_with("-name") ||
+    (cmd.starts_with("git ") && cmd != "git status" && cmd != "git log" && cmd != "git reflog" && cmd != "git remote -v" && cmd != "git diff --staged")
 }
 
 fn keyword_preproc<'a>(

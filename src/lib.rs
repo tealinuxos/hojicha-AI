@@ -144,6 +144,9 @@ pub async fn run(cli: Cli) -> Result<()> {
             } else {
                 crate::config::load_ai_client_from_config(&config).await?
             }
+        } else if config.active_api_provider == crate::config::ApiProvider::Native {
+            println!("{}", "⏳ Memuat model Native (Qwen2.5-0.5B-Instruct, offline)...".yellow());
+            crate::config::load_ai_client_from_config(&config).await?
         } else {
             crate::config::load_ai_client_from_config(&config).await?
         }

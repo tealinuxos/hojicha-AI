@@ -1,22 +1,22 @@
-/// Local Model Client: Built-in offline inference using Candle + SmolLM2-135M-Instruct (GGUF).
+/// Local Model Client: Built-in offline inference using Candle + Qwen2.5-0.5B-Instruct (GGUF).
 /// Downloads model from Hugging Face Hub on first run, then works 100% offline.
 use anyhow::{Context, Result};
 use candle_core::quantized::gguf_file;
 use candle_core::{Device, Tensor};
 use candle_transformers::generation::{LogitsProcessor, Sampling};
-use candle_transformers::models::quantized_llama::ModelWeights;
+use candle_transformers::models::quantized_qwen2::ModelWeights;
 use colored::Colorize;
 use std::path::PathBuf;
 use tokenizers::Tokenizer;
 
 pub struct LocalModelClient {
-    model: ModelWeights,
+    model_path: PathBuf,
     tokenizer: Tokenizer,
     device: Device,
 }
 
 // ChatML special tokens constructed via hex escapes to avoid shell/tool interpretation.
-// These are the exact strings used by SmolLM2-135M-Instruct's ChatML format.
+// These are the exact strings used by Qwen2.5-0.5B-Instruct's ChatML format.
 fn chatml_sys_start() -> String {
     format!("{}system", "<\x7cim_start\x7e>")
 }
@@ -36,35 +36,31 @@ impl LocalModelClient {
         // We run the model check and download on the calling thread (blocked)
         // using standard hf-hub cache.
         let (model_path, tokenizer_path) = download_built_in_model()?;
-
         let device = Device::Cpu; // CPU execution is standard and dependency-free
-
-        let mut file = std::fs::File::open(&model_path)
-            .context("Gagal membuka file model GGUF")?;
-
-        let content = gguf_file::Content::read(&mut file)
-            .context("Gagal membaca metadata GGUF")?;
-
-        let model = ModelWeights::from_gguf(content, &mut file, &device)
-            .context("Gagal memuat bobot model GGUF ke memory")?;
 
         let tokenizer = Tokenizer::from_file(&tokenizer_path)
             .map_err(|e| anyhow::anyhow!("Gagal memuat tokenizer: {}", e))?;
 
         Ok(Self {
-            model,
+            model_path,
             tokenizer,
             device,
         })
     }
 
     pub fn generate_raw(&mut self, system: &str, prompt: &str) -> Result<String> {
-        // Clone the model for a fresh KV cache (cheap shallow clone in Candle).
-        let mut active_model = self.model.clone();
+        // Load the model weights dynamically per-query to avoid cloning limitations
+        // and reduce background memory usage to 0MB when idle.
+        let mut file = std::fs::File::open(&self.model_path)
+            .context("Gagal membuka file model GGUF")?;
+
+        let content = gguf_file::Content::read(&mut file)
+            .context("Gagal membaca metadata GGUF")?;
+
+        let mut active_model = ModelWeights::from_gguf(content, &mut file, &self.device)
+            .context("Gagal memuat bobot model GGUF ke memory")?;
 
         // Clean ChatML format — no few-shot examples.
-        // The pipeline pre-processor handles keyword matching and greetings
-        // before the LLM is called, so the LLM only handles edge cases.
         let end = chatml_end();
         let formatted_prompt = format!(
             "{}\n{}{}\n{}\n{}{}\n{}",
@@ -76,8 +72,6 @@ impl LocalModelClient {
         let tokens = self.tokenizer.encode(formatted_prompt, true)
             .map_err(|e| anyhow::anyhow!("Encoding error: {}", e))?;
         let prompt_tokens = tokens.get_ids();
-
-        // println!("DEBUG: Tokenized prompt: {:?}", token_names);
 
         let mut all_tokens = prompt_tokens.to_vec();
         let mut next_token: u32 = 0;
@@ -145,37 +139,69 @@ impl LocalModelClient {
 // ─── Auto-downloader for built-in model ─────────────────────────────────────
 
 fn download_built_in_model() -> Result<(PathBuf, PathBuf)> {
-    use hf_hub::api::sync::Api;
+    use hf_hub::api::sync::ApiBuilder;
     use hf_hub::{Cache, Repo, RepoType};
 
     let cache = Cache::default();
-    let repo_token = Repo::new("HuggingFaceTB/SmolLM2-135M-Instruct".to_string(), RepoType::Model);
-    let repo_model = Repo::new("bartowski/SmolLM2-135M-Instruct-GGUF".to_string(), RepoType::Model);
+    let repo_token = Repo::new("Qwen/Qwen2.5-0.5B-Instruct".to_string(), RepoType::Model);
+    let repo_model = Repo::new("Qwen/Qwen2.5-0.5B-Instruct-GGUF".to_string(), RepoType::Model);
 
     let is_cached = cache.repo(repo_token).get("tokenizer.json").is_some()
-        && cache.repo(repo_model).get("SmolLM2-135M-Instruct-Q4_K_M.gguf").is_some();
+        && cache.repo(repo_model).get("qwen2.5-0.5b-instruct-q4_k_m.gguf").is_some();
 
     if !is_cached {
         println!("{}", "📥 Model AI lokal built-in tidak ditemukan.".truecolor(251, 191, 36).bold());
-        println!("{}", "   Mengunduh SmolLM2-135M (105MB) dari Hugging Face Hub...".truecolor(251, 191, 36).bold());
+        println!("{}", "   Mengunduh Qwen2.5-0.5B (~396MB) dari Hugging Face Hub...".truecolor(251, 191, 36).bold());
         println!("{}", "   (Proses ini hanya sekali, selanjutnya akan berjalan 100% offline)".truecolor(160, 160, 160));
         println!();
     }
 
-    let api = Api::new().context("Gagal menginisialisasi Hugging Face API client")?;
-    
-    // Get tokenizer from main repository
-    let repo_info = api.model("HuggingFaceTB/SmolLM2-135M-Instruct".to_string());
+    // Build API with retries enabled for large file downloads
+    let api = ApiBuilder::new()
+        .with_retries(3)
+        .build()
+        .context("Gagal menginisialisasi Hugging Face API client")?;
+
+    // Get tokenizer from main repository (small file, rarely fails)
+    let repo_info = api.model("Qwen/Qwen2.5-0.5B-Instruct".to_string());
     let tokenizer_path = repo_info.get("tokenizer.json")
         .context("Gagal mengunduh tokenizer.json")?;
 
-    // Get model file from GGUF repository
+    // Get model file from GGUF repository (~396MB, may need retries)
     let model_repo = api.repo(Repo::new(
-        "bartowski/SmolLM2-135M-Instruct-GGUF".to_string(),
+        "Qwen/Qwen2.5-0.5B-Instruct-GGUF".to_string(),
         RepoType::Model,
     ));
-    let model_path = model_repo.get("SmolLM2-135M-Instruct-Q4_K_M.gguf")
-        .context("Gagal mengunduh SmolLM2-135M-Instruct-Q4_K_M.gguf")?;
+
+    const MAX_ATTEMPTS: u32 = 3;
+    let model_path = {
+        let mut attempt = 0u32;
+        loop {
+            attempt += 1;
+            match model_repo.get("qwen2.5-0.5b-instruct-q4_k_m.gguf") {
+                Ok(path) => break Ok(path),
+                Err(e) => {
+                    if attempt < MAX_ATTEMPTS {
+                        println!(
+                            "{}",
+                            format!(
+                                "   ⚠️  Percobaan {}/{} gagal: {}. Mengulang...",
+                                attempt, MAX_ATTEMPTS, e
+                            )
+                            .truecolor(251, 191, 36)
+                        );
+                        std::thread::sleep(std::time::Duration::from_secs(2));
+                    } else {
+                        break Err(anyhow::anyhow!(
+                            "Gagal mengunduh qwen2.5-0.5b-instruct-q4_k_m.gguf setelah {} percobaan: {}",
+                            MAX_ATTEMPTS,
+                            e
+                        ));
+                    }
+                }
+            }
+        }
+    }?;
 
     if !is_cached {
         println!("{}", "✅ Model dan tokenizer berhasil diunduh!".truecolor(134, 239, 172).bold());

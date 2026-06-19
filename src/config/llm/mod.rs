@@ -20,6 +20,7 @@ use self::openrouter::OpenRouterConfig;
 #[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ApiProvider {
+    Native,
     #[default]
     Ollama,
     Openai,
@@ -31,6 +32,7 @@ pub enum ApiProvider {
 impl ApiProvider {
     pub fn display_name(self) -> &'static str {
         match self {
+            Self::Native => "Native",
             Self::Ollama => "Ollama",
             Self::Openai => "OpenAI",
             Self::Gemini => "Gemini",
@@ -54,6 +56,7 @@ impl<'de> Deserialize<'de> for ApiProvider {
             .to_ascii_lowercase();
 
         Ok(match normalized.as_str() {
+            "native" => Self::Native,
             "ollama" => Self::Ollama,
             "openai" => Self::Openai,
             "gemini" => Self::Gemini,
