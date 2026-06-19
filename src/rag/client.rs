@@ -96,10 +96,11 @@ impl AiClient {
                             is_safe: true,
                         })
                     } else {
-                        // Raw command fallback — is_safe is true here because the
-                        // authoritative safety check is in the safety module (check_safety).
-                        // The is_safe field reflects the LLM's judgment, which is unavailable
-                        // when JSON parsing fails. The safety module provides the real gate.
+                        // SECURITY: Raw command fallback — is_safe is set to true because
+                        // the authoritative safety check is in the safety module (check_safety),
+                        // which ALWAYS runs before execution. The is_safe field is a secondary
+                        // check from the LLM's judgment, which is unavailable when JSON
+                        // parsing fails. The safety module provides the real security gate.
                         Ok(CommandResponse {
                             command: Some(clean_cmd),
                             explanation: String::new(),
