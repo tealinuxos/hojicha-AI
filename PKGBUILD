@@ -22,7 +22,7 @@ build() {
   cd "$startdir"
   export RUSTUP_TOOLCHAIN=stable
   export CARGO_TARGET_DIR=target
-  cargo build --release --locked
+  cargo build --release
 }
 
 package() {
