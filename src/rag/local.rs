@@ -15,6 +15,21 @@ pub struct LocalModelClient {
     device: Device,
 }
 
+// ChatML special tokens constructed via hex escapes to avoid shell/tool interpretation.
+// These are the exact strings used by SmolLM2-135M-Instruct's ChatML format.
+fn chatml_sys_start() -> String {
+    format!("{}system", "<\x7cim_start\x7e>")
+}
+fn chatml_user_start() -> String {
+    format!("{}user", "<\x7cim_start\x7e>")
+}
+fn chatml_asst_start() -> String {
+    format!("{}assistant", "<\x7cim_start\x7e>")
+}
+fn chatml_end() -> String {
+    "<\x7cim_end\x7e>".to_string()
+}
+
 impl LocalModelClient {
     /// Initialize local model, downloading from Hugging Face if not present
     pub fn load_built_in() -> Result<Self> {
@@ -44,59 +59,28 @@ impl LocalModelClient {
     }
 
     pub fn generate_raw(&mut self, system: &str, prompt: &str) -> Result<String> {
-        // Clone the model template to get a fresh model state with a clean KV cache.
-        // Tensors in Candle are cheaply cloned (shallow reference count copy), so this has negligible overhead.
+        // Clone the model for a fresh KV cache (cheap shallow clone in Candle).
         let mut active_model = self.model.clone();
 
-        let is_cmd_gen = system.contains("FORMAT RESPONS WAJIB");
+        // Clean ChatML format — no few-shot examples.
+        // The pipeline pre-processor handles keyword matching and greetings
+        // before the LLM is called, so the LLM only handles edge cases.
+        let end = chatml_end();
+        let formatted_prompt = format!(
+            "{}\n{}{}\n{}\n{}{}\n{}",
+            chatml_sys_start(), system, end,
+            chatml_user_start(), prompt, end,
+            chatml_asst_start(),
+        );
 
-        // Format prompt for SmolLM2 chat template.
-        // For command generation, we construct a structured multi-turn conversation
-        // that dynamically selects the single most relevant few-shot example.
-        // This keeps the context extremely short and focused, which prevents the 135M model from losing attention.
-        let formatted_prompt = if is_cmd_gen {
-            let p_lower = prompt.to_lowercase();
-            let example = if p_lower.contains("ram") || p_lower.contains("memori") || p_lower.contains("memory") || p_lower.contains("konsumsi") {
-                ("berapa konsumsi ram saya", "free -h")
-            } else if p_lower.contains("koneksi") || p_lower.contains("internet") || p_lower.contains("ping") || p_lower.contains("konek") {
-                ("cek koneksi internet", "ping -c 4 google.com")
-            } else {
-                ("lihat file di folder ini", "ls -la")
-            };
-
-            format!(
-                "<|im_start|>system\nYou are Hojicha, a Linux assistant. Translate user intent to a Linux command. Output ONLY the raw command. Do not explain. Do not use markdown.<|im_end|>\n\
-                 <|im_start|>user\n{}<|im_end|>\n\
-                 <|im_start|>assistant\n{}<|im_end|>\n\
-                 <|im_start|>user\n{}<|im_end|>\n\
-                 <|im_start|>assistant\n",
-                example.0, example.1, prompt
-            )
-        } else if prompt.contains("Jelaskan output di atas") || prompt.contains("Ringkasan") {
-            let simplified_system = "You are Hojicha, a Linux assistant. Summarize the terminal output.\n\n\
-                 Example:\n\
-                 Assistant: {\"summary\": \"Perintah berhasil dijalankan dan menampilkan daftar file.\", \"key_info\": \"Ada 5 file di direktori saat ini.\", \"next_suggestion\": \"Ketik pwd untuk melihat posisi folder Anda saat ini.\"}\n\n\
-                 Respond ONLY with a JSON object in this format:\n\
-                 {\"summary\": \"summary in Indonesian\", \"key_info\": \"key info in Indonesian\", \"next_suggestion\": \"suggestion in Indonesian or null\"}";
-            format!(
-                "<|im_start|>system\n{}<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n{{",
-                simplified_system, prompt
-            )
-        } else {
-            format!(
-                "<|im_start|>system\n{}<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n{{",
-                system, prompt
-            )
-        };
-
-        let tokens = self.tokenizer.encode(formatted_prompt.clone(), true)
+        let tokens = self.tokenizer.encode(formatted_prompt, true)
             .map_err(|e| anyhow::anyhow!("Encoding error: {}", e))?;
         let prompt_tokens = tokens.get_ids();
 
         // println!("DEBUG: Tokenized prompt: {:?}", token_names);
 
         let mut all_tokens = prompt_tokens.to_vec();
-        let mut next_token = 0;
+        let mut next_token: u32 = 0;
         let mut pos = 0;
 
         let mut logits_processor = LogitsProcessor::from_sampling(
@@ -117,8 +101,8 @@ impl LocalModelClient {
             generated_tokens.push(next_token);
         }
 
-        let eos_token_id = self.tokenizer.token_to_id("<|im_end|>")
-            .or_else(|| self.tokenizer.token_to_id("<|endoftext|>"))
+        let eos_token_id = self.tokenizer.token_to_id(&end)
+            .or_else(|| self.tokenizer.token_to_id("<|im_end|>"))
             .unwrap_or(0);
 
         // Generate response loop
@@ -133,7 +117,7 @@ impl LocalModelClient {
             let logits = active_model.forward(&input, pos)?;
             let logits = logits.squeeze(0)?;
 
-            // Apply repeat penalty to generated tokens only (avoid penalizing few-shot prompt tokens)
+            // Apply repeat penalty to generated tokens
             let logits = if generated_tokens.is_empty() {
                 logits
             } else {
@@ -153,13 +137,8 @@ impl LocalModelClient {
         let output = self.tokenizer.decode(&generated_tokens, true)
             .map_err(|e| anyhow::anyhow!("Decoding error: {}", e))?;
 
-        // Reconstruct the response output
-        let final_output = if is_cmd_gen {
-            output.trim().to_string()
-        } else {
-            format!("{{{}", output.trim())
-        };
-        Ok(final_output)
+        // Return the raw generated text — the client.rs extract_json handles parsing
+        Ok(output.trim().to_string())
     }
 }
 
