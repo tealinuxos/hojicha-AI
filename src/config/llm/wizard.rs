@@ -7,46 +7,73 @@ use crate::rag::{AiClient, GeminiClient, OllamaClient, OpenAiClient};
 const OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
 const GROQ_BASE_URL: &str = "https://api.groq.com/openai/v1";
 
-/// SECURITY: Validate base_url to prevent SSRF attacks.
-/// Rejects internal/private IPs and enforces HTTPS for non-localhost connections.
-fn validate_base_url(url: &str) -> Result<()> {
-    let url_lower = url.to_lowercase();
-    
-    // Allow localhost and 127.0.0.1 for local development (Ollama, etc.)
-    if url_lower.contains("localhost") || url_lower.contains("127.0.0.1") {
-        return Ok(());
+/// Probe the base URL to verify it implements the OpenAI-compatible API protocol.
+/// Sends a GET request to `{base_url}/models` and checks for a valid response.
+/// Also warns if the connection is HTTP (non-HTTPS) for non-localhost URLs.
+async fn probe_openai_api(base_url: &str, api_key: Option<&str>) -> Result<()> {
+    let is_localhost = base_url.contains("localhost") || base_url.contains("127.0.0.1");
+
+    // Warn about non-HTTPS connections (API keys sent in plaintext)
+    if !is_localhost && !base_url.to_lowercase().starts_with("https://") {
+        eprintln!(
+            "⚠️  URL '{}' menggunakan HTTP (bukan HTTPS). API key Anda bisa terekspos.",
+            base_url
+        );
+        eprintln!("   Gunakan HTTPS jika memungkinkan untuk keamanan.");
     }
-    
-    // Block private/internal IP ranges
-    let private_patterns = [
-        "10.", "172.16.", "172.17.", "172.18.", "172.19.",
-        "172.20.", "172.21.", "172.22.", "172.23.", "172.24.",
-        "172.25.", "172.26.", "172.27.", "172.28.", "172.29.",
-        "172.30.", "172.31.", "192.168.",
-        "169.254.", // link-local
-        "0.0.0.0",
-        "[::1]",    // IPv6 loopback
-        "[fc",      // IPv6 private
-        "[fd",      // IPv6 private
-    ];
-    
-    for pattern in private_patterns {
-        if url_lower.contains(pattern) {
-            anyhow::bail!(
-                "URL '{}' mengandung IP internal/private. Gunakan URL publik untuk keamanan.",
-                url
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .danger_accept_invalid_certs(is_localhost) // Allow self-signed certs on localhost
+        .build()?;
+
+    let models_url = format!("{}/models", base_url.trim_end_matches('/'));
+    let mut req = client.get(&models_url);
+
+    if let Some(key) = api_key {
+        req = req.header("Authorization", format!("Bearer {}", key));
+    }
+
+    let resp = req.send().await.with_context(|| {
+        format!(
+            "Gagal menghubungi '{}'. Pastikan URL benar dan server berjalan.",
+            models_url
+        )
+    })?;
+
+    let status = resp.status();
+    if !status.is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        anyhow::bail!(
+            "Server di '{}' mengembalikan status {}: {}",
+            base_url,
+            status,
+            body.chars().take(200).collect::<String>()
+        );
+    }
+
+    // Try to parse as OpenAI models response
+    #[derive(serde::Deserialize)]
+    struct ModelsResponse {
+        data: Option<Vec<serde_json::Value>>,
+    }
+
+    let body = resp.text().await.unwrap_or_default();
+    let parsed: Result<ModelsResponse, _> = serde_json::from_str(&body);
+    match parsed {
+        Ok(models_resp) => {
+            let count = models_resp.data.map(|d| d.len()).unwrap_or(0);
+            println!("✅ API terdeteksi! Ditemukan {} model di '{}'.", count, base_url);
+        }
+        Err(_) => {
+            // Might still be a valid API, just non-standard models endpoint
+            println!(
+                "ℹ️  Server di '{}' merespons, tetapi format /models tidak standar. Tetap digunakan.",
+                base_url
             );
         }
     }
-    
-    // Enforce HTTPS for non-localhost URLs
-    if !url_lower.starts_with("https://") {
-        anyhow::bail!(
-            "URL '{}' harus menggunakan HTTPS (bukan HTTP) untuk koneksi yang aman.",
-            url
-        );
-    }
-    
+
     Ok(())
 }
 
@@ -155,10 +182,10 @@ pub async fn run_model_wizard(ai_client: &mut AiClient) -> Result<()> {
                             &mut config.openai,
                             &["gpt-4o-mini", "gpt-4o"],
                             "https://api.openai.com/v1",
-                        )?;
+                        ).await?;
                     }
                     ApiProvider::Gemini if config_selection < 5 => {
-                        configure_gemini(&theme, &mut config.gemini)?;
+                        configure_gemini(&theme, &mut config.gemini).await?;
                     }
                     ApiProvider::Openrouter if config_selection < 5 => {
                         configure_openai_compatible(
@@ -170,7 +197,7 @@ pub async fn run_model_wizard(ai_client: &mut AiClient) -> Result<()> {
                                 "google/gemma-4-31b-it:free",
                             ],
                             OPENROUTER_BASE_URL,
-                        )?;
+                        ).await?;
                     }
                     ApiProvider::Groq if config_selection < 5 => {
                         configure_openai_compatible(
@@ -182,7 +209,7 @@ pub async fn run_model_wizard(ai_client: &mut AiClient) -> Result<()> {
                                 "llama-3.1-8b-instant",
                             ],
                             GROQ_BASE_URL,
-                        )?;
+                        ).await?;
                     }
                     _ => {}
                 }
@@ -363,7 +390,7 @@ async fn configure_ollama(theme: &ColorfulTheme, conf: &mut OllamaConfig) -> Res
     Ok(())
 }
 
-fn configure_openai_compatible(
+async fn configure_openai_compatible(
     theme: &ColorfulTheme,
     provider_name: &str,
     conf: &mut OpenAiConfig,
@@ -399,11 +426,13 @@ fn configure_openai_compatible(
     conf.base_url = if base_url_input.trim().is_empty() {
         None
     } else {
-        // SECURITY: Validate URL to prevent SSRF
-        if let Err(e) = validate_base_url(&base_url_input) {
+        // Probe the URL to verify it implements the OpenAI protocol
+        println!("🔍 Memeriksa API di '{}'...", base_url_input);
+        if let Err(e) = probe_openai_api(&base_url_input, conf.api_key.as_deref()).await {
             println!("⚠️  {}", e);
-            println!("   Menggunakan URL default sebagai gantinya.");
-            None
+            println!("   URL tetap disimpan, tetapi API mungkin tidak berfungsi.");
+            // Still save the URL — the user knows best about their setup
+            Some(base_url_input)
         } else {
             Some(base_url_input)
         }
@@ -423,7 +452,7 @@ fn configure_openai_compatible(
     Ok(())
 }
 
-fn configure_gemini(theme: &ColorfulTheme, conf: &mut GeminiConfig) -> Result<()> {
+async fn configure_gemini(theme: &ColorfulTheme, conf: &mut GeminiConfig) -> Result<()> {
     println!("\n🔧 Konfigurasi Gemini:");
     println!("API Key Saat Ini: {}", mask_key(conf.api_key.as_ref()));
 
@@ -458,11 +487,12 @@ fn configure_gemini(theme: &ColorfulTheme, conf: &mut GeminiConfig) -> Result<()
     conf.base_url = if base_url_input.trim().is_empty() {
         None
     } else {
-        // SECURITY: Validate URL to prevent SSRF
-        if let Err(e) = validate_base_url(&base_url_input) {
+        // Probe the URL to verify connectivity
+        println!("🔍 Memeriksa koneksi ke '{}'...", base_url_input);
+        if let Err(e) = probe_openai_api(&base_url_input, conf.api_key.as_deref()).await {
             println!("⚠️  {}", e);
-            println!("   Menggunakan URL default sebagai gantinya.");
-            None
+            println!("   URL tetap disimpan, tetapi server mungkin tidak reachable.");
+            Some(base_url_input)
         } else {
             Some(base_url_input)
         }

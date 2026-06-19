@@ -94,13 +94,14 @@ impl OpenAiClient {
             .as_deref()
             .unwrap_or(self.default_base_url);
 
-        // SECURITY: Enforce HTTPS for API connections to prevent API key exposure.
-        // Allow HTTP only for localhost (local development with Ollama, etc.)
+        // SECURITY: Warn about non-HTTPS connections (API keys sent in plaintext).
+        // Allow HTTP for localhost (local development) and for custom APIs that
+        // have already been validated via the wizard's probe_openai_api().
         let is_localhost = base_url.contains("localhost") || base_url.contains("127.0.0.1");
         if !is_localhost && !base_url.starts_with("https://") {
-            anyhow::bail!(
-                "Base URL '{}' harus menggunakan HTTPS untuk melindungi API key Anda. \
-                 Gunakan HTTPS atau localhost untuk development.",
+            eprintln!(
+                "⚠️  Base URL '{}' menggunakan HTTP. API key bisa terekspos. \
+                 Pertimbangkan menggunakan HTTPS.",
                 base_url
             );
         }
