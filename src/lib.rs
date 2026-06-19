@@ -307,19 +307,49 @@ async fn run_interactive(
             _ => {}
         }
 
-        // /find <nama> — search file/folder tanpa lewat AI
-        if input.starts_with("/find ") || input.starts_with("find ") {
-            let query = input
-                .trim_start_matches("/find ")
-                .trim_start_matches("find ")
+        // /find [scope] <nama> — search file/folder tanpa lewat AI
+        // Scope: default = ~  |  /find / <nama> = seluruh laptop  |  /find . <nama> = CWD saja
+        if input.starts_with("/find") || (input.starts_with("find ") && !input.contains("=")) {
+            let args = input
+                .trim_start_matches("/find")
+                .trim_start_matches("find")
                 .trim()
                 .to_string();
-            if query.is_empty() {
-                ui::print_error("Penggunaan: /find <nama_file_atau_folder>");
+
+            if args.is_empty() {
+                ui::print_error("Penggunaan:");
+                println!("    /find <nama>          → cari di folder Home (~)");
+                println!("    /find / <nama>        → cari di seluruh laptop (/)");
+                println!("    /find . <nama>        → cari di folder saat ini");
             } else {
-                let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("/"));
-                let results = find_files(&cwd, &query, 8, 200);
-                ui::print_search_results(&query, &results);
+                // Parse scope dan query
+                let (root, query) = if args.starts_with("/ ") {
+                    (std::path::PathBuf::from("/"), args[2..].trim().to_string())
+                } else if args.starts_with(". ") {
+                    (std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")), args[2..].trim().to_string())
+                } else if args == "/" || args == "." {
+                    ui::print_error("Penggunaan: /find / <nama_file> atau /find . <nama_file>");
+                    continue;
+                } else {
+                    // Default: cari dari home (~)
+                    let home = std::env::var("HOME").unwrap_or_else(|_| "/".to_string());
+                    (std::path::PathBuf::from(home), args.clone())
+                };
+
+                if query.is_empty() {
+                    ui::print_error("Nama file/folder tidak boleh kosong.");
+                } else {
+                    let scope_label = if root == std::path::PathBuf::from("/") {
+                        "seluruh laptop (/)".to_string()
+                    } else if root == std::env::current_dir().unwrap_or_default() {
+                        format!("folder saat ini ({})", root.display())
+                    } else {
+                        format!("home (~{})", root.display())
+                    };
+                    println!("  {} Mencari '{}' di {} ...", "🔍".truecolor(104, 211, 145), query.bold(), scope_label.dimmed());
+                    let results = find_files(&root, &query, 10, 300);
+                    ui::print_search_results(&query, &results);
+                }
             }
             continue;
         }
