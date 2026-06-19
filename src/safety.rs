@@ -26,14 +26,16 @@ const FORBIDDEN_PATTERNS: &[&str] = &[
     r"rm\s+-rf\s+\*",          // rm -rf *
     r"dd\s+if=.*of=/dev/sd",   // dd to disk device
     r"dd\s+if=.*of=/dev/hd",   // dd to disk device
+    r"dd\s+if=.*of=/dev/nvme", // dd to NVMe device
     r"mkfs",                   // format filesystem
     r"fdisk",                  // partition disk
     r"parted",                 // partition disk
     r"shred",                  // secure delete
     r"wipefs",                 // wipe filesystem
-    r":!\(:\)\{:\|:&\};:",     // fork bomb
+    r":\s*\(\)\s*\{",          // fork bomb (broadened pattern)
     r">\s*/dev/sda",           // write to disk
     r">\s*/dev/hda",           // write to disk
+    r">\s*/dev/nvme",          // write to NVMe
     r"chmod\s+-R\s+777\s+/",   // chmod 777 on root
     r"chown\s+-R.*:\s*/",      // chown on root
     r"shutdown",               // shutdown system
@@ -47,12 +49,26 @@ const FORBIDDEN_PATTERNS: &[&str] = &[
     r"wget.*\|\s*bash",        // wget pipe to bash
     r"curl.*\|\s*sh",          // curl pipe to sh
     r"wget.*\|\s*sh",          // wget pipe to sh
+    r"curl.*\|\s*zsh",         // curl pipe to zsh
+    r"wget.*\|\s*zsh",         // wget pipe to zsh
+    r"curl.*\|\s*fish",        // curl pipe to fish
     r"base64\s+-d.*\|\s*bash", // base64 decode pipe bash
     r"eval\s+\$\(",            // eval subshell
     r"sudo\s+su",              // privilege escalation
     r"su\s+-\s*$",             // switch to root
     r"passwd\s+root",          // change root password
     r"visudo",                 // edit sudoers
+    r"python3?\s+-c\s+",       // python inline code execution
+    r"perl\s+-e\s+",           // perl inline code execution
+    r"ruby\s+-e\s+",           // ruby inline code execution
+    r"node\s+-e\s+",           // node inline code execution
+    r"find\s+.*-exec\s+",      // find with -exec
+    r"xargs\s+",               // xargs command
+    r"\bnc\s+-[a-z]*[elp]",   // netcat with listen/exec flags
+    r"\bncat\s+-[a-z]*[elp]", // ncat with listen/exec flags
+    r"tee\s+/dev/",            // tee to device
+    r"tee\s+/etc/",            // tee to system config
+    r"tee\s+/usr/",            // tee to system binaries
 ];
 
 /// Patterns that need user confirmation (moderate risk)
@@ -82,11 +98,16 @@ const SHELL_COMPOSITION_PATTERNS: &[&str] = &[
     r";\s*\w",                 // semicolon chaining: ; command
     r"\$\(",                   // subshell: $(...)
     r"`",                      // backtick command substitution
-    r"\|\s*(ba)?sh",           // pipe to shell: | sh, | bash
+    r"\|\s*(ba|z|fi)?sh",      // pipe to shell: | sh, | bash, | zsh, | fish
     r"&&",                     // SECURITY: block ALL && chaining (not just && rm)
     r"\|\s*eval",              // pipe to eval
+    r"\|\s*python3?",          // pipe to python
+    r"\|\s*perl",              // pipe to perl
+    r"\|\s*ruby",              // pipe to ruby
+    r"\|\s*node",              // pipe to node
     r">\s*/etc/",              // write to system config
     r">\s*/usr/",              // write to system binaries
+    r">\s*/dev/nvme",          // write to NVMe device
 ];
 
 /// Pre-compiled forbidden regexes (compiled once at startup, not per-call)
