@@ -271,19 +271,66 @@ async fn run_interactive(
 
     let mut history: Vec<(String, String)> = Vec::new();
 
-    loop {
-        ui::print_prompt();
-        io::stdout().flush()?;
+    let history_file_path = if let Ok(home) = std::env::var("HOME") {
+        Some(std::path::PathBuf::from(home)
+            .join(".config")
+            .join("hojicha")
+            .join("history.txt"))
+    } else {
+        None
+    };
 
-        let mut input = String::new();
-        if io::stdin().read_line(&mut input).is_err() {
-            break;
+    let mut rl = rustyline::DefaultEditor::new()?;
+    if let Some(ref path) = history_file_path {
+        if path.exists() {
+            let should_load = if let Ok(metadata) = std::fs::metadata(path) {
+                if let Ok(modified) = metadata.modified() {
+                    if let Ok(elapsed) = modified.elapsed() {
+                        elapsed.as_secs() < 86400 // 1 day in seconds
+                    } else {
+                        true
+                    }
+                } else {
+                    true
+                }
+            } else {
+                true
+            };
+
+            if should_load {
+                let _ = rl.load_history(path);
+            } else {
+                let _ = std::fs::remove_file(path);
+            }
         }
+    }
+
+    loop {
+        let readline = rl.readline(&format!("{} ", ui::color_primary("hojicha ❯").bold()));
+        let input = match readline {
+            Ok(line) => line,
+            Err(rustyline::error::ReadlineError::Interrupted) => {
+                // Ctrl-C
+                continue;
+            }
+            Err(rustyline::error::ReadlineError::Eof) => {
+                // Ctrl-D
+                ui::print_goodbye();
+                break;
+            }
+            Err(err) => {
+                ui::print_error(&format!("Gagal membaca input: {:?}", err));
+                break;
+            }
+        };
+
         let input = input.trim().to_string();
 
         if input.is_empty() {
             continue;
         }
+
+        let _ = rl.add_history_entry(&input);
 
         match input.to_lowercase().as_str() {
             "exit" | "quit" | "q" | "/exit" | "/q" => {
@@ -403,6 +450,13 @@ async fn run_interactive(
                 ui::print_error(&e.to_string());
             }
         }
+    }
+
+    if let Some(ref path) = history_file_path {
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let _ = rl.save_history(path);
     }
 
     Ok(())
