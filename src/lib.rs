@@ -68,20 +68,16 @@ fn resolve_kb_path(cli_path: Option<&str>) -> std::path::PathBuf {
     };
     let filename = format!("knowledge_base_{}.json", suffix);
 
-    // 1. Check in the current working directory
-    let cwd_path = std::path::Path::new("src/data").join(&filename);
-    if cwd_path.exists() {
-        return cwd_path;
-    }
-
-    // 2. Fallback to ~/.config/hojicha/knowledge_base_<suffix>.json
+    // Primary: ~/.config/hojicha/knowledge_base_<os>.json
+    // If file not found, kb.rs will auto-create it from embedded data on first run.
     if let Ok(home) = std::env::var("HOME") {
         std::path::PathBuf::from(home)
             .join(".config")
             .join("hojicha")
             .join(&filename)
     } else {
-        std::path::PathBuf::from("src/data").join(&filename)
+        // Fallback: path that likely won't exist — kb.rs embedded fallback will handle it
+        std::path::PathBuf::from("/tmp").join(&filename)
     }
 }
 
