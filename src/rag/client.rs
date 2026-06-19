@@ -1,4 +1,5 @@
 use crate::rag::gemini::GeminiClient;
+use crate::rag::local::LocalModelClient;
 use crate::rag::ollama::OllamaClient;
 use crate::rag::openai::OpenAiClient;
 use crate::rag::utils::extract_json;
@@ -36,6 +37,7 @@ pub enum AiClient {
     Gemini(GeminiClient),
     OpenRouter(OpenAiClient),
     Groq(OpenAiClient),
+    Local(Box<LocalModelClient>),
 }
 
 impl AiClient {
@@ -53,6 +55,7 @@ impl AiClient {
                 openrouter.generate_raw(system_prompt, user_input).await?
             }
             Self::Groq(groq) => groq.generate_raw(system_prompt, user_input).await?,
+            Self::Local(local) => local.generate_raw(system_prompt, user_input)?,
         };
 
         let json_str = extract_json(&raw);
@@ -125,6 +128,7 @@ impl AiClient {
                     .await?
             }
             Self::Groq(groq) => groq.generate_raw(system_prompt, summary_prompt).await?,
+            Self::Local(local) => local.generate_raw(system_prompt, summary_prompt)?,
         };
 
         let json_str = extract_json(&raw);

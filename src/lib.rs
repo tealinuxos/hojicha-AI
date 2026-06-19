@@ -10,7 +10,7 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use executor::execute_command;
-use rag::{AiClient, RagPipeline};
+use rag::{AiClient, LocalModelClient, RagPipeline};
 use safety::{check_safety, RiskLevel};
 use serde_json::Value;
 use std::io::{self, Write};
@@ -26,6 +26,18 @@ use std::io::{self, Write};
 pub struct Cli {
     /// Pertanyaan atau perintah dalam bahasa alami (opsional - tanpa argumen masuk mode interaktif)
     pub query: Option<String>,
+
+    /// URL server Ollama
+    #[arg(long, default_value = "http://localhost:11434")]
+    pub ollama_url: String,
+
+    /// Nama model Ollama yang akan digunakan
+    #[arg(short, long, default_value = "qwen2.5:1.5b")]
+    pub model: String,
+
+    /// Gunakan model built-in offline lokal (tanpa memerlukan Ollama)
+    #[arg(short, long, default_value_t = false)]
+    pub local: bool,
 
     /// Gunakan OpenAI-compatible API: --opencode <URL> [MODEL_NAME]
     #[arg(long, num_args = 1..=2)]
@@ -80,13 +92,21 @@ pub async fn run(cli: Cli) -> Result<()> {
     // Build RAG pipeline (indexes KB in memory, ~1ms)
     let rag_pipeline = RagPipeline::build(&kb_file_path);
 
-    // Load AI client: --opencode flag overrides config file
-    let mut ai_client = if let Some(opencode_args) = cli.opencode {
+    // Load AI client based on priority: --local > --opencode > config file
+    let mut ai_client = if cli.local {
+        // Force loading local built-in model
+        println!("{}", "Mengaktifkan model built-in offline lokal...".yellow());
+        AiClient::Local(Box::new(LocalModelClient::load_built_in()?))
+    } else if let Some(opencode_args) = cli.opencode {
         let base_url = opencode_args[0].clone();
         let api_key = load_opencode_api_key().unwrap_or_default();
         let model = if opencode_args.len() > 1 {
             opencode_args[1].clone()
+        } else if cli.model != "qwen2.5:1.5b" {
+            // Use --model flag if explicitly set
+            cli.model.clone()
         } else {
+            // Use default model from opencode config if available
             load_opencode_model().unwrap_or_else(|| "gpt-4o-mini".to_string())
         };
         let openai_config = crate::config::OpenAiConfig {
@@ -98,7 +118,31 @@ pub async fn run(cli: Cli) -> Result<()> {
         AiClient::OpenAi(rag::OpenAiClient::new(openai_config))
     } else {
         let config = crate::config::LlmConfig::load_or_create()?;
-        crate::config::load_ai_client_from_config(&config).await?
+
+        // If provider is Ollama, apply --ollama-url and --model overrides
+        let mut config = config;
+        if config.active_api_provider == crate::config::ApiProvider::Ollama {
+            if cli.ollama_url != "http://localhost:11434" {
+                config.ollama.base_url = cli.ollama_url.clone();
+            }
+            if cli.model != "qwen2.5:1.5b" {
+                config.ollama.model = cli.model.clone();
+            }
+        }
+
+        // Auto-fallback: If Ollama is the provider but unreachable, fall back to local model
+        if config.active_api_provider == crate::config::ApiProvider::Ollama {
+            let ollama = rag::OllamaClient::new(config.ollama.clone());
+            if !ollama.ping().await {
+                println!("{}", "Ollama tidak terdeteksi.".yellow());
+                println!("{}", "Mengaktifkan model built-in offline lokal...".yellow());
+                AiClient::Local(Box::new(LocalModelClient::load_built_in()?))
+            } else {
+                crate::config::load_ai_client_from_config(&config).await?
+            }
+        } else {
+            crate::config::load_ai_client_from_config(&config).await?
+        }
     };
 
     if let Some(query) = &cli.query {
@@ -209,6 +253,12 @@ async fn run_interactive(
                     .green()
                     .bold(),
                 format!("(model: {})", groq.config.model).dimmed()
+            );
+        }
+        AiClient::Local(_) => {
+            println!(
+                "  {}",
+                "Menggunakan model built-in lokal".green().bold()
             );
         }
     }
