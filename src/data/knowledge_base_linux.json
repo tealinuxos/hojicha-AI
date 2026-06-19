@@ -1368,6 +1368,596 @@
     "risk": "Moderate",
     "example": "sudo systemctl stop docker",
     "beginner_tip": "Memerlukan hak akses sudo karena menghentikan layanan tingkat sistem"
+  },
+  {
+    "id": "git-status",
+    "command": "git status",
+    "description": "Menampilkan status working directory dan staging area (apakah ada file yang diubah, dihapus, atau belum di-track)",
+    "keywords": ["git status", "status git", "status file git", "cek status git", "status repository"],
+    "category": "Git",
+    "risk": "Safe",
+    "example": "git status",
+    "beginner_tip": "Gunakan command ini sesering mungkin untuk mengetahui keadaan repository Anda saat ini."
+  },
+  {
+    "id": "git-diff",
+    "command": "git diff",
+    "description": "Menampilkan perbedaan/perubahan file yang belum di-stage (belum di-git add)",
+    "keywords": ["git diff", "perbedaan git", "cek perubahan git", "diff git"],
+    "category": "Git",
+    "risk": "Safe",
+    "example": "git diff",
+    "beginner_tip": "Perintah ini membantu Anda meninjau kembali apa saja yang telah Anda ubah sebelum melakukan add."
+  },
+  {
+    "id": "git-diff-staged",
+    "command": "git diff --staged",
+    "description": "Menampilkan perbedaan/perubahan file yang sudah di-stage (sudah di-git add tapi belum di-commit)",
+    "keywords": ["git diff staged", "diff staged", "perubahan staged", "cek staged diff"],
+    "category": "Git",
+    "risk": "Safe",
+    "example": "git diff --staged",
+    "beginner_tip": "Sangat berguna untuk memastikan kembali kode yang siap untuk di-commit."
+  },
+  {
+    "id": "git-show",
+    "command": "git show",
+    "description": "Menampilkan informasi detail dan perubahan (diff) dari objek git seperti commit tertentu",
+    "keywords": ["git show", "detail commit", "lihat commit", "show commit"],
+    "category": "Git",
+    "risk": "Safe",
+    "example": "git show HEAD",
+    "beginner_tip": "Secara default, git show akan menampilkan informasi commit terakhir (HEAD)."
+  },
+  {
+    "id": "git-log",
+    "command": "git log",
+    "description": "Menampilkan riwayat commit secara detail di branch saat ini",
+    "keywords": ["git log", "riwayat commit", "log commit", "history commit"],
+    "category": "Git",
+    "risk": "Safe",
+    "example": "git log",
+    "beginner_tip": "Tekan 'q' untuk keluar dari halaman log."
+  },
+  {
+    "id": "git-log-oneline",
+    "command": "git log --oneline",
+    "description": "Menampilkan riwayat commit secara ringkas, satu baris per commit",
+    "keywords": ["git log oneline", "log ringkas", "log satu baris", "history commit ringkas"],
+    "category": "Git",
+    "risk": "Safe",
+    "example": "git log --oneline",
+    "beginner_tip": "Tampilan ini jauh lebih rapi dan mudah dibaca untuk proyek dengan banyak commit."
+  },
+  {
+    "id": "git-reflog",
+    "command": "git reflog",
+    "description": "Menampilkan riwayat perubahan referensi branch (berguna untuk melacak commit yang hilang/dihapus)",
+    "keywords": ["git reflog", "reflog", "riwayat reflog", "lacak commit hilang"],
+    "category": "Git",
+    "risk": "Safe",
+    "example": "git reflog",
+    "beginner_tip": "Ini adalah jaring pengaman Git. Jika Anda tidak sengaja menghapus commit atau branch, cari hash commit di sini."
+  },
+  {
+    "id": "git-blame",
+    "command": "git blame",
+    "description": "Menampilkan siapa yang mengubah setiap baris dalam suatu file beserta revisinya",
+    "keywords": ["git blame", "blame file", "siapa edit baris", "riwayat baris file"],
+    "category": "Git",
+    "risk": "Safe",
+    "example": "git blame namafile.txt",
+    "beginner_tip": "Berguna untuk mencari tahu siapa yang bertanggung jawab atas penulisan baris kode tertentu."
+  },
+  {
+    "id": "git-branch",
+    "command": "git branch",
+    "description": "Menampilkan daftar branch lokal di repository saat ini",
+    "keywords": ["git branch", "daftar branch", "lihat branch", "list branch"],
+    "category": "Git",
+    "risk": "Safe",
+    "example": "git branch",
+    "beginner_tip": "Branch yang aktif ditandai dengan tanda bintang (*) dan berwarna hijau."
+  },
+  {
+    "id": "git-branch-all",
+    "command": "git branch -a",
+    "description": "Menampilkan daftar semua branch, baik lokal maupun remote",
+    "keywords": ["git branch -a", "semua branch", "branch remote lokal", "branch all"],
+    "category": "Git",
+    "risk": "Safe",
+    "example": "git branch -a",
+    "beginner_tip": "Membantu melihat branch yang ada di server remote (seperti GitHub/GitLab)."
+  },
+  {
+    "id": "git-remote-v",
+    "command": "git remote -v",
+    "description": "Menampilkan daftar URL repository remote yang terhubung dengan repository lokal",
+    "keywords": ["git remote", "remote url", "cek remote", "git remote -v"],
+    "category": "Git",
+    "risk": "Safe",
+    "example": "git remote -v",
+    "beginner_tip": "-v singkatan dari verbose, menampilkan URL fetch dan push."
+  },
+  {
+    "id": "git-init",
+    "command": "git init",
+    "description": "Menginisialisasi repository Git baru di direktori saat ini",
+    "keywords": ["git init", "inisialisasi git", "buat repo baru", "mulai git"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git init",
+    "beginner_tip": "Perintah ini membuat folder tersembunyi bernama .git di direktori Anda."
+  },
+  {
+    "id": "git-add",
+    "command": "git add",
+    "description": "Menambahkan file baru atau perubahan file ke staging area",
+    "keywords": ["git add", "tambah staging", "stage file", "git add file"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git add namafile.txt",
+    "beginner_tip": "Gunakan 'git add .' untuk menambahkan seluruh perubahan di direktori saat ini."
+  },
+  {
+    "id": "git-restore-file",
+    "command": "git restore",
+    "description": "Membatalkan perubahan pada file di working directory (mengembalikan ke kondisi commit terakhir)",
+    "keywords": ["git restore", "batal ubah file", "restore file git", "cancel changes"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git restore namafile.txt",
+    "beginner_tip": "Hati-hati: perubahan yang belum di-commit akan hilang secara permanen."
+  },
+  {
+    "id": "git-restore-all",
+    "command": "git restore .",
+    "description": "Membatalkan seluruh perubahan pada semua file di direktori saat ini",
+    "keywords": ["git restore .", "batal semua perubahan", "restore semua", "cancel all changes"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git restore .",
+    "beginner_tip": "Hati-hati: seluruh perubahan lokal yang belum di-stage/commit akan dihapus."
+  },
+  {
+    "id": "git-commit",
+    "command": "git commit -m",
+    "description": "Menyimpan snapshot perubahan yang ada di staging area ke dalam riwayat git",
+    "keywords": ["git commit", "commit", "simpan perubahan git", "buat commit"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git commit -m \"Deskripsi perubahan\"",
+    "beginner_tip": "Selalu berikan pesan commit yang jelas dan ringkas agar riwayat proyek mudah dipahami."
+  },
+  {
+    "id": "git-push",
+    "command": "git push",
+    "description": "Mengunggah commit lokal ke repository remote di server",
+    "keywords": ["git push", "push commit", "unggah git", "push ke github"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git push origin main",
+    "beginner_tip": "Pastikan Anda telah melakukan commit sebelum melakukan push."
+  },
+  {
+    "id": "git-pull",
+    "command": "git pull",
+    "description": "Mengambil perubahan terbaru dari repository remote dan langsung menggabungkannya (merge) ke branch lokal",
+    "keywords": ["git pull", "tarik perubahan", "update repo lokal", "pull git"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git pull origin main",
+    "beginner_tip": "Sebaiknya jalankan ini sebelum mulai bekerja untuk menghindari konflik kode."
+  },
+  {
+    "id": "git-fetch",
+    "command": "git fetch",
+    "description": "Mengambil informasi riwayat/commit terbaru dari repository remote tanpa menggabungkannya ke branch lokal",
+    "keywords": ["git fetch", "ambil info remote", "cek update remote", "fetch git"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git fetch origin",
+    "beginner_tip": "Berguna untuk melihat apakah ada perubahan baru di remote tanpa memengaruhi kode lokal Anda."
+  },
+  {
+    "id": "git-switch",
+    "command": "git switch",
+    "description": "Berpindah dari branch aktif ke branch lain",
+    "keywords": ["git switch", "pindah branch", "ganti branch", "switch branch"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git switch nama_branch",
+    "beginner_tip": "Pastikan working directory bersih sebelum berpindah branch."
+  },
+  {
+    "id": "git-switch-create",
+    "command": "git switch -c",
+    "description": "Membuat branch baru dan langsung berpindah ke branch tersebut",
+    "keywords": ["git switch -c", "buat branch baru", "create branch switch", "new branch"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git switch -c branch_baru",
+    "beginner_tip": "Alternatif modern dari 'git checkout -b'."
+  },
+  {
+    "id": "git-checkout",
+    "command": "git checkout",
+    "description": "Berpindah branch, memulihkan file working tree, atau beralih ke commit tertentu",
+    "keywords": ["git checkout", "checkout branch", "pindah branch lama", "checkout commit"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git checkout nama_branch",
+    "beginner_tip": "Untuk berpindah branch, disarankan menggunakan 'git switch' karena lebih spesifik."
+  },
+  {
+    "id": "git-merge",
+    "command": "git merge",
+    "description": "Menggabungkan riwayat commit dari branch lain ke branch yang sedang aktif",
+    "keywords": ["git merge", "gabung branch", "merge branch", "penyatuan branch"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git merge nama_branch",
+    "beginner_tip": "Jika terjadi konflik, Anda harus menyelesaikannya secara manual sebelum menyelesaikan merge."
+  },
+  {
+    "id": "git-rebase",
+    "command": "git rebase",
+    "description": "Menerapkan commit dari branch saat ini di atas branch dasar lainnya untuk riwayat commit yang lebih linear",
+    "keywords": ["git rebase", "rebase branch", "rebase git", "linear history"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git rebase main",
+    "beginner_tip": "Jangan lakukan rebase pada commit yang sudah di-push ke public repository."
+  },
+  {
+    "id": "git-branch-delete",
+    "command": "git branch -d",
+    "description": "Menghapus branch lokal yang sudah digabungkan (merged)",
+    "keywords": ["git branch -d", "hapus branch", "delete branch", "buang branch"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git branch -d nama_branch",
+    "beginner_tip": "Gunakan flag -D jika ingin memaksa menghapus branch yang belum di-merge."
+  },
+  {
+    "id": "git-stash",
+    "command": "git stash",
+    "description": "Menyimpan sementara perubahan yang belum di-commit agar working directory bersih",
+    "keywords": ["git stash", "stash", "simpan sementara", "hide changes"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git stash",
+    "beginner_tip": "Sangat berguna saat Anda harus pindah branch darurat tapi belum siap commit perubahan saat ini."
+  },
+  {
+    "id": "git-stash-pop",
+    "command": "git stash pop",
+    "description": "Mengembalikan perubahan terakhir yang di-stash dan langsung menghapusnya dari daftar stash",
+    "keywords": ["git stash pop", "pop stash", "kembalikan stash", "terapkan stash"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git stash pop",
+    "beginner_tip": "Perubahan akan diterapkan kembali ke working directory Anda."
+  },
+  {
+    "id": "git-stash-apply",
+    "command": "git stash apply",
+    "description": "Mengembalikan perubahan dari stash ke working directory tanpa menghapusnya dari daftar stash",
+    "keywords": ["git stash apply", "apply stash", "kembalikan stash aman"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git stash apply",
+    "beginner_tip": "Berguna jika Anda ingin menerapkan stash yang sama ke beberapa branch berbeda."
+  },
+  {
+    "id": "git-stash-drop",
+    "command": "git stash drop",
+    "description": "Menghapus entri stash tertentu dari daftar penyimpanan stash",
+    "keywords": ["git stash drop", "drop stash", "hapus stash", "delete stash"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git stash drop stash@{0}",
+    "beginner_tip": "Hati-hati: stash yang dihapus tidak dapat dikembalikan lagi."
+  },
+  {
+    "id": "git-remote-add",
+    "command": "git remote add",
+    "description": "Menambahkan koneksi repository remote baru",
+    "keywords": ["git remote add", "tambah remote", "add remote", "hubungkan git remote"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git remote add origin https://github.com/user/repo.git",
+    "beginner_tip": "Nama remote default biasanya adalah 'origin'."
+  },
+  {
+    "id": "git-remote-remove",
+    "command": "git remote remove",
+    "description": "Menghapus koneksi ke repository remote tertentu",
+    "keywords": ["git remote remove", "hapus remote", "delete remote", "remove remote git"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git remote remove origin",
+    "beginner_tip": "Perintah ini hanya memutus tautan lokal ke remote, tidak menghapus repository asli di server."
+  },
+  {
+    "id": "git-tag",
+    "command": "git tag",
+    "description": "Menampilkan daftar tag (penanda versi) yang ada di repository",
+    "keywords": ["git tag", "lihat tag", "daftar tag", "list tag"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git tag",
+    "beginner_tip": "Tag biasanya digunakan untuk menandai rilis versi software (seperti v1.0.0)."
+  },
+  {
+    "id": "git-tag-annotate",
+    "command": "git tag -a",
+    "description": "Membuat tag beranotasi dengan pesan deskripsi tambahan",
+    "keywords": ["git tag -a", "buat tag", "tag baru", "annotate tag"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git tag -a v1.0.0 -m \"Rilis versi 1.0.0\"",
+    "beginner_tip": "Tag beranotasi menyimpan data pembuat, tanggal, dan pesan tag."
+  },
+  {
+    "id": "git-push-tags",
+    "command": "git push origin --tags",
+    "description": "Mengunggah seluruh tag lokal ke server remote",
+    "keywords": ["git push tags", "push tag ke github", "unggah tag"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git push origin --tags",
+    "beginner_tip": "Secara default, perintah 'git push' biasa tidak akan otomatis mengunggah tag."
+  },
+  {
+    "id": "git-cherry-pick",
+    "command": "git cherry-pick",
+    "description": "Mengambil satu commit tertentu dari branch lain dan menerapkannya sebagai commit baru di branch aktif",
+    "keywords": ["git cherry pick", "cherry pick", "ambil commit tertentu"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git cherry-pick hash_commit",
+    "beginner_tip": "Sangat membantu jika Anda ingin menyalin fitur kecil dari branch eksperimen tanpa melakukan merge penuh."
+  },
+  {
+    "id": "git-merge-squash",
+    "command": "git merge --squash",
+    "description": "Menggabungkan semua commit dari branch lain menjadi satu commit tunggal di branch aktif",
+    "keywords": ["git merge squash", "merge squash", "gabung satu commit"],
+    "category": "Git",
+    "risk": "Moderate",
+    "example": "git merge --squash nama_branch",
+    "beginner_tip": "Membuat riwayat commit di branch utama (seperti main/master) tetap bersih dan ringkas."
+  },
+  {
+    "id": "git-clone",
+    "command": "git clone",
+    "description": "Menyalin repository remote yang sudah ada ke dalam direktori lokal komputer Anda",
+    "keywords": ["git clone", "clone git", "download repository", "salin repo"],
+    "category": "Git",
+    "risk": "Dangerous",
+    "example": "git clone https://github.com/user/repo.git",
+    "beginner_tip": "Menyalin seluruh riwayat commit dan file proyek ke direktori baru."
+  },
+  {
+    "id": "git-reset-head",
+    "command": "git reset HEAD",
+    "description": "Membatalkan file dari staging area (unstage) tanpa menghapus perubahan kodenya",
+    "keywords": ["git reset head", "unstage file", "batal add", "reset head"],
+    "category": "Git",
+    "risk": "Dangerous",
+    "example": "git reset HEAD namafile.txt",
+    "beginner_tip": "Perubahan akan kembali ke working directory Anda sebagai file yang belum di-stage."
+  },
+  {
+    "id": "git-reset-soft",
+    "command": "git reset --soft HEAD~1",
+    "description": "Membatalkan commit terakhir, namun tetap mempertahankan perubahan file di staging area",
+    "keywords": ["git reset soft", "batal commit terakhir", "reset soft commit"],
+    "category": "Git",
+    "risk": "Dangerous",
+    "example": "git reset --soft HEAD~1",
+    "beginner_tip": "Gunakan ini jika Anda ingin memperbaiki pesan commit atau menambahkan perubahan tambahan ke commit tersebut."
+  },
+  {
+    "id": "git-reset-hard",
+    "command": "git reset --hard HEAD~1",
+    "description": "Membatalkan commit terakhir beserta seluruh perubahan file di staging area dan working directory secara permanen",
+    "keywords": ["git reset hard", "batal total commit", "reset hard commit", "hapus commit terakhir"],
+    "category": "Git",
+    "risk": "Dangerous",
+    "example": "git reset --hard HEAD~1",
+    "beginner_tip": "⚠️ PERINGATAN: Perintah ini menghapus semua kode yang belum di-commit dan commit terakhir secara permanen!"
+  },
+  {
+    "id": "git-revert",
+    "command": "git revert",
+    "description": "Membuat commit baru yang membalikkan seluruh efek/perubahan dari commit tertentu",
+    "keywords": ["git revert", "revert commit", "balikkan commit", "revert git"],
+    "category": "Git",
+    "risk": "Dangerous",
+    "example": "git revert hash_commit",
+    "beginner_tip": "Cara aman untuk membatalkan commit di repository bersama karena tidak merusak riwayat commit lama."
+  },
+  {
+    "id": "git-clean-fd",
+    "command": "git clean -fd",
+    "description": "Menghapus seluruh file dan folder yang tidak dilacak (untracked) dari working directory",
+    "keywords": ["git clean", "clean untracked", "hapus file tak dilacak", "clean fd"],
+    "category": "Git",
+    "risk": "Dangerous",
+    "example": "git clean -fd",
+    "beginner_tip": "⚠️ PERINGATAN: File yang tidak dilacak akan dihapus permanen. Jalankan 'git clean -nd' terlebih dahulu untuk simulasi."
+  },
+  {
+    "id": "git-bisect",
+    "command": "git bisect",
+    "description": "Menggunakan pencarian biner (binary search) untuk menemukan commit mana yang memperkenalkan bug/celah",
+    "keywords": ["git bisect", "bisect", "cari commit bug", "temukan bug commit"],
+    "category": "Git",
+    "risk": "Dangerous",
+    "example": "git bisect start",
+    "beginner_tip": "Anda menandai commit buruk (bad) dan commit baik (good), Git akan berpindah di antara commit untuk diuji."
+  },
+  {
+    "id": "git-rebase-interactive",
+    "command": "git rebase -i",
+    "description": "Melakukan rebase interaktif untuk mengedit, memilah, menggabungkan (squash), atau menghapus commit lama",
+    "keywords": ["git rebase -i", "rebase interaktif", "edit commit lama", "squash commit"],
+    "category": "Git",
+    "risk": "Dangerous",
+    "example": "git rebase -i HEAD~3",
+    "beginner_tip": "Membuka editor teks berisi instruksi khusus untuk menata ulang riwayat commit Anda."
+  },
+  {
+    "id": "git-worktree",
+    "command": "git worktree",
+    "description": "Mengelola beberapa working tree yang terhubung dengan repository yang sama (mengerjakan beberapa branch sekaligus di folder terpisah)",
+    "keywords": ["git worktree", "worktree", "banyak folder branch", "multi branch folder"],
+    "category": "Git",
+    "risk": "Dangerous",
+    "example": "git worktree add ../fitur-baru nama_branch",
+    "beginner_tip": "Sangat berguna untuk meneliti bug di branch lain tanpa mengganggu pekerjaan Anda di branch aktif."
+  },
+  {
+    "id": "git-submodule",
+    "command": "git submodule",
+    "description": "Menyematkan repository Git eksternal ke dalam subdirektori proyek Anda",
+    "keywords": ["git submodule", "submodule", "repo dalam repo", "embed git repository"],
+    "category": "Git",
+    "risk": "Dangerous",
+    "example": "git submodule add URL_REPO path/folder",
+    "beginner_tip": "Submodule bertindak sebagai pointer ke commit tertentu pada repository eksternal."
+  },
+  {
+    "id": "generate_commit_message",
+    "command": "generate_commit_message",
+    "description": "Membuat pesan commit otomatis berdasarkan hasil pembacaan perbedaan file (git diff)",
+    "keywords": ["generate commit message", "buat pesan commit", "commit message ai", "saran commit"],
+    "category": "AI Skills",
+    "risk": "Safe",
+    "example": "generate_commit_message",
+    "beginner_tip": "AI akan menyusun pesan commit yang rapi berdasarkan perubahan kode Anda."
+  },
+  {
+    "id": "explain_changes",
+    "command": "explain_changes",
+    "description": "Menjelaskan baris-baris perubahan kode (git diff) secara rinci dan mudah dipahami",
+    "keywords": ["explain changes", "jelaskan perubahan", "arti diff", "penjelasan kode"],
+    "category": "AI Skills",
+    "risk": "Safe",
+    "example": "explain_changes",
+    "beginner_tip": "Membantu Anda atau rekan satu tim memahami tujuan dan implikasi dari perubahan kode."
+  },
+  {
+    "id": "review_diff",
+    "command": "review_diff",
+    "description": "Meninjau dan menganalisis kode yang diubah (git diff) untuk menemukan potensi kesalahan atau masalah performa",
+    "keywords": ["review diff", "tinjau diff", "code review ai", "cek kualitas kode"],
+    "category": "AI Skills",
+    "risk": "Safe",
+    "example": "review_diff",
+    "beginner_tip": "Saran praktis untuk meningkatkan kualitas kode sebelum diajukan dalam Pull Request."
+  },
+  {
+    "id": "create_pr_summary",
+    "command": "create_pr_summary",
+    "description": "Membuat ringkasan deskripsi Pull Request (PR) otomatis berdasarkan perbedaan branch (git diff origin/main)",
+    "keywords": ["create pr summary", "ringkasan pr", "buat deskripsi pr", "pr description ai"],
+    "category": "AI Skills",
+    "risk": "Safe",
+    "example": "create_pr_summary",
+    "beginner_tip": "Menghemat waktu penulisan dokumentasi PR untuk ditinjau oleh reviewer."
+  },
+  {
+    "id": "suggest_branch_name",
+    "command": "suggest_branch_name",
+    "description": "Merekomendasikan nama branch Git yang deskriptif dan konsisten berdasarkan fitur yang akan dibuat",
+    "keywords": ["suggest branch name", "saran nama branch", "nama branch git", "rekomendasi branch"],
+    "category": "AI Skills",
+    "risk": "Safe",
+    "example": "suggest_branch_name",
+    "beginner_tip": "Mendukung format nama branch standar seperti feat/auth atau fix/bug-token."
+  },
+  {
+    "id": "find_bug",
+    "command": "find_bug",
+    "description": "Menganalisis file kode untuk menemukan bug, kesalahan logika, atau kerentanan keamanan",
+    "keywords": ["find bug", "cari bug", "analisis bug", "temukan kesalahan kode"],
+    "category": "AI Skills",
+    "risk": "Safe",
+    "example": "find_bug",
+    "beginner_tip": "Gunakan skill ini jika ada error yang sulit dilacak pada kode Anda."
+  },
+  {
+    "id": "suggest_refactor",
+    "command": "suggest_refactor",
+    "description": "Memberikan saran restrukturisasi (refactor) kode agar lebih bersih, efisien, dan mudah dipelihara",
+    "keywords": ["suggest refactor", "saran refactor", "bersihkan kode", "refactor ai"],
+    "category": "AI Skills",
+    "risk": "Safe",
+    "example": "suggest_refactor",
+    "beginner_tip": "Membantu meningkatkan kualitas arsitektur kode tanpa mengubah perilakunya."
+  },
+  {
+    "id": "smart_stage",
+    "command": "smart_stage",
+    "description": "Membantu mengelompokkan dan menambahkan file secara cerdas ke staging area (git add)",
+    "keywords": ["smart stage", "stage cerdas", "git add cerdas", "pengelompokkan stage"],
+    "category": "AI Skills",
+    "risk": "Moderate",
+    "example": "smart_stage",
+    "beginner_tip": "AI akan merekomendasikan file mana saja yang logis untuk di-stage bersama."
+  },
+  {
+    "id": "smart_commit",
+    "command": "smart_commit",
+    "description": "Melakukan git add dan git commit secara otomatis dengan pesan commit yang disusun cerdas oleh AI",
+    "keywords": ["smart commit", "commit cerdas", "add commit otomatis"],
+    "category": "AI Skills",
+    "risk": "Moderate",
+    "example": "smart_commit",
+    "beginner_tip": "Mengotomatiskan alur kerja git add + commit dalam satu langkah interaktif."
+  },
+  {
+    "id": "commit_and_push",
+    "command": "commit_and_push",
+    "description": "Melakukan git add, git commit, dan git push sekaligus secara otomatis ke server remote",
+    "keywords": ["commit and push", "commit push otomatis", "publish perubahan"],
+    "category": "AI Skills",
+    "risk": "Moderate",
+    "example": "commit_and_push",
+    "beginner_tip": "⚠️ Hati-hati: Pastikan Anda meninjau perubahan yang siap di-push agar tidak ada file tidak diinginkan yang terkirim."
+  },
+  {
+    "id": "undo_changes",
+    "command": "undo_changes",
+    "description": "Membatalkan perubahan file atau commit terakhir (menggunakan git restore atau git reset)",
+    "keywords": ["undo changes", "batal perubahan", "undo git", "kembalikan kode"],
+    "category": "AI Skills",
+    "risk": "Dangerous",
+    "example": "undo_changes",
+    "beginner_tip": "⚠️ PERINGATAN: Skill ini berpotensi menghapus kode lokal yang belum disimpan secara permanen."
+  },
+  {
+    "id": "recover_commit",
+    "command": "recover_commit",
+    "description": "Mencari dan memulihkan commit yang terhapus menggunakan pembacaan git reflog",
+    "keywords": ["recover commit", "pulihkan commit", "cari commit hilang"],
+    "category": "AI Skills",
+    "risk": "Safe",
+    "example": "recover_commit",
+    "beginner_tip": "Membantu menemukan kembali titik commit lama yang tidak sengaja terhapus."
+  },
+  {
+    "id": "resolve_conflicts",
+    "command": "resolve_conflicts",
+    "description": "Membatalkan / menyelesaikan konflik penggabungan kode (merge conflict) secara cerdas",
+    "keywords": ["resolve conflicts", "selesaikan konflik", "merge conflict helper"],
+    "category": "AI Skills",
+    "risk": "Moderate",
+    "example": "resolve_conflicts",
+    "beginner_tip": "AI akan menyajikan opsi pemecahan konflik berdasarkan kedua sisi kode yang bertentangan."
   }
 ]
 

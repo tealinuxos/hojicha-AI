@@ -77,9 +77,12 @@ pub fn print_help() {
     println!("  {}    - Tampilkan model yang digunakan", "model".truecolor(72, 187, 120));
     println!("  {}    - Ganti tema warna (dark/light)", "theme".truecolor(72, 187, 120));
     println!("  {}    - Bersihkan riwayat percakapan", "clear".truecolor(72, 187, 120));
+    println!("  {}     - Muat info/status .git ke memori percakapan", "/git".truecolor(72, 187, 120));
     println!("  {} - Cari file/folder di Home (~)", "/find <nama>".truecolor(72, 187, 120));
     println!("  {}   - Cari di seluruh laptop", "/find / <nama>".truecolor(72, 187, 120));
     println!("  {}   - Cari di folder saat ini", "/find . <nama>".truecolor(72, 187, 120));
+    println!("  {}  - Cari hanya folder saja di Home", "/find folder <nama>".truecolor(72, 187, 120));
+    println!("  {}    - Cari hanya file saja di Home", "/find file <nama>".truecolor(72, 187, 120));
     println!();
     println!("{}", "─".repeat(50).truecolor(60, 80, 68));
     println!();
@@ -106,8 +109,10 @@ pub fn print_explanation(explanation: &str, tip: Option<&str>) {
     }
 }
 
-pub fn print_confirm_moderate() {
-    print!("  {}\n  {} ", "Perintah ini memerlukan konfirmasi.".bold().yellow(), "Jalankan? (y/n):".dimmed());
+pub fn print_confirm_moderate(reason: &str, command: &str) {
+    println!("  {}", reason.bold().yellow());
+    println!("  {} {}", "Perintah:".bold(), command.green());
+    print!("  {} ", "Jalankan? (y/n):".dimmed());
 }
 
 pub fn print_blocked_dangerous(reason: &str) {

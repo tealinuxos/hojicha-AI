@@ -9,6 +9,7 @@ pub mod ui;
 use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
+use dialoguer::{Select, MultiSelect};
 use executor::execute_command;
 use rag::{AiClient, LocalModelClient, RagPipeline};
 use safety::{check_safety, RiskLevel};
@@ -358,6 +359,67 @@ async fn run_interactive(
                 ui::print_history_cleared();
                 continue;
             }
+            "git" | "/git" => {
+                match execute_command("git rev-parse --is-inside-work-tree") {
+                    Ok(out) if out.success && out.stdout.trim() == "true" => {
+                        let branch = execute_command("git branch --show-current")
+                            .map(|o| o.stdout.trim().to_string())
+                            .unwrap_or_else(|_| "Tidak diketahui".to_string());
+                        
+                        let remote = execute_command("git remote -v")
+                            .map(|o| o.stdout.trim().to_string())
+                            .unwrap_or_else(|_| "".to_string());
+                        let remote_str = if remote.is_empty() {
+                            "Tidak ada remote terkonfigurasi".to_string()
+                        } else {
+                            remote.lines().next().unwrap_or("").to_string()
+                        };
+
+                        let status = execute_command("git status --short")
+                            .map(|o| o.stdout.trim().to_string())
+                            .unwrap_or_else(|_| "".to_string());
+                        let status_str = if status.is_empty() {
+                            "Bersih (tidak ada perubahan)".to_string()
+                        } else {
+                            status
+                        };
+
+                        let commit = execute_command("git log -1 --oneline")
+                            .map(|o| o.stdout.trim().to_string())
+                            .unwrap_or_else(|_| "Belum ada commit".to_string());
+
+                        println!();
+                        println!("{}", ui::color_primary("=== INFORMASI REPOSITORY GIT ===").bold());
+                        println!("  {} {}", ui::color_light("Branch aktif :"), branch);
+                        println!("  {} {}", ui::color_light("Remote URL   :"), remote_str);
+                        println!("  {}", ui::color_light("Status File  :"));
+                        for line in status_str.lines() {
+                            println!("    {}", line);
+                        }
+                        println!("  {}", ui::color_light("Commit Terakhir:"));
+                        println!("    {}", commit);
+                        println!();
+
+                        history.push((
+                            "/git".to_string(),
+                            format!(
+                                "Informasi Repository Git saat ini:\n\
+                                 Branch: {}\n\
+                                 Remote: {}\n\
+                                 Status perubahan:\n{}\n\
+                                 Commit terakhir: {}",
+                                branch, remote_str, status_str, commit
+                            )
+                        ));
+                        println!("  {}", "Data .git otomatis dimuat ke memori percakapan asisten.".italic().dimmed());
+                        println!();
+                    }
+                    _ => {
+                        ui::print_error("Direktori saat ini bukan merupakan repository Git. Silakan inisialisasi dengan 'git init'.");
+                    }
+                }
+                continue;
+            }
             _ => {}
         }
 
@@ -462,6 +524,308 @@ async fn run_interactive(
     Ok(())
 }
 
+// ─── Interactive Git Helpers ──────────────────────────────────────────────────
+
+fn get_git_changes() -> Result<Vec<(String, String)>> {
+    let out = execute_command("git status --porcelain")?;
+    let mut changes = Vec::new();
+    for line in out.stdout.lines() {
+        if line.len() > 3 {
+            let status = line[..2].to_string();
+            let file = line[2..].trim().to_string();
+            changes.push((status, file));
+        }
+    }
+    Ok(changes)
+}
+
+fn run_interactive_staging() -> Result<Option<Vec<String>>> {
+    let changes = get_git_changes()?;
+    if changes.is_empty() {
+        println!("Tidak ada file yang berubah atau belum dilacak.");
+        return Ok(None);
+    }
+
+    println!("\nFile yang berubah/belum dilacak:");
+    let items: Vec<String> = changes.iter().map(|(status, file)| {
+        format!("{} - {}", status, file)
+    }).collect();
+
+    // Add option to select all
+    let mut options = vec!["[PILIH SEMUA]".to_string()];
+    options.extend(items.clone());
+
+    let selection = MultiSelect::new()
+        .with_prompt("Pilih file yang ingin di-stage (git add). Tekan Space untuk memilih, Enter untuk selesai")
+        .items(&options)
+        .defaults(&vec![false; options.len()])
+        .interact()?;
+
+    if selection.is_empty() {
+        println!("Tidak ada file yang dipilih untuk di-stage.");
+        return Ok(Some(Vec::new()));
+    }
+
+    let mut files_to_add = Vec::new();
+    if selection.contains(&0) {
+        // Select all files
+        for (_, file) in changes {
+            files_to_add.push(file);
+        }
+    } else {
+        for idx in selection {
+            if idx > 0 {
+                files_to_add.push(changes[idx - 1].1.clone());
+            }
+        }
+    }
+
+    Ok(Some(files_to_add))
+}
+
+async fn generate_commit_message_ai(ai_client: &mut AiClient) -> Result<String> {
+    let mut diff_out = execute_command("git diff --staged")?;
+    let mut diff = diff_out.stdout;
+    if diff.trim().is_empty() {
+        diff_out = execute_command("git diff")?;
+        diff = diff_out.stdout;
+    }
+
+    if diff.trim().is_empty() {
+        return Err(anyhow::anyhow!("Tidak ada perubahan kode yang terdeteksi untuk membuat commit message."));
+    }
+
+    let system_prompt = crate::rag::prompt::commit_generator_prompt(&diff);
+    println!("Sedang membuat pesan commit menggunakan AI...");
+    let response = ai_client.nl_to_command(&system_prompt, "Generate a concise conventional commit message based on the diff.").await?;
+    
+    let msg = if !response.explanation.is_empty() {
+        response.explanation.trim().to_string()
+    } else if let Some(ref cmd) = response.command {
+        cmd.trim().to_string()
+    } else {
+        "feat: update files".to_string()
+    };
+
+    Ok(msg)
+}
+
+fn confirm_command(command: &str) -> bool {
+    print!("  Jalankan perintah ini? `{}` (y/n): ", command);
+    let _ = io::stdout().flush();
+    let mut input = String::new();
+    if io::stdin().read_line(&mut input).is_ok() {
+        let trimmed = input.trim().to_lowercase();
+        trimmed == "y" || trimmed == "yes" || trimmed == "ya"
+    } else {
+        false
+    }
+}
+
+async fn handle_interactive_git_flow(
+    ai_client: &mut AiClient,
+    command: &str,
+    user_input: &str,
+) -> Result<Option<String>> {
+    let command_lower = command.to_lowercase();
+    let is_commit = command_lower.contains("git commit");
+    let is_push = command_lower.contains("git push");
+    let is_add = command_lower.contains("git add");
+
+    // 1. Staging flow
+    if is_commit {
+        let changes = get_git_changes()?;
+        if !changes.is_empty() {
+            println!("\nAda {} file yang belum di-stage atau belum dilacak.", changes.len());
+            let choices = &["Stage semua file (git add .)", "Pilih file untuk di-stage secara interaktif", "Lewati (commit file yang sudah di-stage saja)", "Batalkan"];
+            let selection = Select::new()
+                .with_prompt("Pilih tindakan staging")
+                .items(choices)
+                .default(0)
+                .interact()?;
+
+            match selection {
+                0 => {
+                    if confirm_command("git add .") {
+                        execute_command("git add .")?;
+                        println!("Semua file telah di-stage.");
+                    } else {
+                        println!("Staging dibatalkan.");
+                    }
+                }
+                1 => {
+                    if let Ok(Some(files)) = run_interactive_staging() {
+                        if !files.is_empty() {
+                            let add_cmd = format!("git add {}", files.iter().map(|f| format!("'{}'", f)).collect::<Vec<_>>().join(" "));
+                            if confirm_command(&add_cmd) {
+                                execute_command(&add_cmd)?;
+                                println!("File terpilih telah di-stage.");
+                            } else {
+                                println!("Staging dibatalkan.");
+                            }
+                        }
+                    }
+                }
+                2 => {}
+                _ => {
+                    ui::print_cancelled();
+                    return Ok(None);
+                }
+            }
+        }
+    }
+
+    // 2. Add flow
+    if is_add && (command.trim() == "git add" || command.trim() == "git add .") {
+        let staged_something = if command.trim() == "git add" {
+            if let Ok(Some(files)) = run_interactive_staging() {
+                if !files.is_empty() {
+                    let add_cmd = format!("git add {}", files.iter().map(|f| format!("'{}'", f)).collect::<Vec<_>>().join(" "));
+                    if confirm_command(&add_cmd) {
+                        execute_command(&add_cmd)?;
+                        println!("File terpilih telah di-stage.");
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        } else {
+            if confirm_command(command) {
+                let out = execute_command(command)?;
+                ui::print_raw_output(&out.stdout);
+                true
+            } else {
+                false
+            }
+        };
+
+        if staged_something {
+            if confirm_command("Apakah Anda ingin langsung membuat commit untuk perubahan ini?") {
+                let commit_res = Box::pin(handle_interactive_git_flow(ai_client, "git commit", user_input)).await?;
+                return Ok(commit_res);
+            } else {
+                return Ok(Some(command.to_string()));
+            }
+        }
+        ui::print_cancelled();
+        return Ok(None);
+    }
+
+    // 3. Commit flow
+    if is_commit {
+        let has_message = (command.contains(" -m") || command.contains(" --message"))
+            && (user_input.contains(" -m") || user_input.contains(" --message"));
+
+        if !has_message {
+            let choices = &["Buatkan dengan AI", "Ketik sendiri", "Batalkan"];
+            let selection = Select::new()
+                .with_prompt("Pilih cara pengisian pesan commit")
+                .items(choices)
+                .default(0)
+                .interact()?;
+
+            let commit_msg = match selection {
+                0 => {
+                    match generate_commit_message_ai(ai_client).await {
+                        Ok(msg) => {
+                            println!("\nPesan commit yang dibuat oleh AI:\n  \"{}\"", msg);
+                            if confirm_command("Gunakan pesan commit ini?") {
+                                msg
+                            } else {
+                                println!("Pembuatan pesan commit dibatalkan.");
+                                return Ok(None);
+                            }
+                        }
+                        Err(e) => {
+                            ui::print_error(&format!("Gagal membuat pesan commit dengan AI: {}", e));
+                            println!("Silakan ketik pesan commit secara manual:");
+                            let mut msg = String::new();
+                            io::stdin().read_line(&mut msg)?;
+                            let msg = msg.trim().to_string();
+                            if !msg.is_empty() && confirm_command(&format!("Gunakan pesan: \"{}\"?", msg)) {
+                                msg
+                            } else {
+                                return Ok(None);
+                            }
+                        }
+                    }
+                }
+                1 => {
+                    println!("\nSilakan ketik pesan commit Anda:");
+                    let mut msg = String::new();
+                    io::stdin().read_line(&mut msg)?;
+                    let msg = msg.trim().to_string();
+                    if !msg.is_empty() && confirm_command(&format!("Gunakan pesan: \"{}\"?", msg)) {
+                        msg
+                    } else {
+                        println!("Commit dibatalkan.");
+                        return Ok(None);
+                    }
+                }
+                _ => {
+                    ui::print_cancelled();
+                    return Ok(None);
+                }
+            };
+
+            if !commit_msg.is_empty() {
+                let commit_cmd = format!("git commit -m '{}'", commit_msg.replace("'", "'\\''"));
+                if confirm_command(&commit_cmd) {
+                    let out = execute_command(&commit_cmd)?;
+                    ui::print_raw_output(&out.stdout);
+                    if !out.success {
+                        ui::print_command_failed(&out.stderr, out.exit_code);
+                    }
+                    return Ok(Some(commit_cmd));
+                }
+            }
+        } else {
+            if confirm_command(command) {
+                let out = execute_command(command)?;
+                ui::print_raw_output(&out.stdout);
+                if !out.success {
+                    ui::print_command_failed(&out.stderr, out.exit_code);
+                }
+                return Ok(Some(command.to_string()));
+            }
+        }
+        ui::print_cancelled();
+        return Ok(None);
+    }
+
+    // 4. Push flow
+    if is_push {
+        if confirm_command(command) {
+            let out = execute_command(command)?;
+            ui::print_raw_output(&out.stdout);
+            if !out.success {
+                ui::print_command_failed(&out.stderr, out.exit_code);
+            }
+            return Ok(Some(command.to_string()));
+        }
+        ui::print_cancelled();
+        return Ok(None);
+    }
+
+    // Default fallback for any moderate git command
+    if confirm_command(command) {
+        let out = execute_command(command)?;
+        ui::print_raw_output(&out.stdout);
+        if !out.success {
+            ui::print_command_failed(&out.stderr, out.exit_code);
+        }
+        return Ok(Some(command.to_string()));
+    }
+
+    ui::print_cancelled();
+    Ok(None)
+}
+
 // ─── Core Query Processing ────────────────────────────────────────────────────
 
 async fn process_query(
@@ -498,6 +862,23 @@ async fn process_query(
         Some(c) => c.clone(),
     };
 
+    // Intercept Git commands for interactive workflow
+    let trimmed_cmd = command.trim();
+    let is_git_cmd = trimmed_cmd.starts_with("git ") || trimmed_cmd == "git";
+    
+    if is_git_cmd && !auto_yes {
+        let safety = check_safety(&command);
+        if safety.risk == RiskLevel::Dangerous {
+            ui::print_blocked_dangerous(&safety.reason);
+            return Ok(None);
+        }
+
+        if safety.risk == RiskLevel::Moderate || trimmed_cmd.starts_with("git add") || trimmed_cmd.starts_with("git commit") || trimmed_cmd.starts_with("git push") {
+            let res = handle_interactive_git_flow(ai_client, trimmed_cmd, user_input).await?;
+            return Ok(res);
+        }
+    }
+
     // ── Step 5: Safety Check ────────────────────────────────────────
     let safety = check_safety(&command);
 
@@ -507,20 +888,16 @@ async fn process_query(
             return Ok(None);
         }
         RiskLevel::Moderate => {
-            if auto_yes {
-                // proceed
-            } else {
-                ui::print_confirm_moderate();
-                io::stdout().flush()?;
-                let mut confirm = String::new();
-                io::stdin().read_line(&mut confirm)?;
-                let confirm = confirm.trim().to_lowercase();
-                match confirm.as_str() {
-                    "y" | "yes" | "ya" => {}
-                    _ => {
-                        ui::print_cancelled();
-                        return Ok(None);
-                    }
+            ui::print_confirm_moderate(&safety.reason, &command);
+            io::stdout().flush()?;
+            let mut confirm = String::new();
+            io::stdin().read_line(&mut confirm)?;
+            let confirm = confirm.trim().to_lowercase();
+            match confirm.as_str() {
+                "y" | "yes" | "ya" => {}
+                _ => {
+                    ui::print_cancelled();
+                    return Ok(None);
                 }
             }
         }

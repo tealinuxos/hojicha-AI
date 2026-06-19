@@ -34,3 +34,23 @@ ATURAN KETAT:
         os_name, os_name, os_name, os_name, os_name
     )
 }
+
+/// Prompt untuk membuat pesan commit konvensional berdasarkan diff kode
+pub fn commit_generator_prompt(diff: &str) -> String {
+    format!(
+        r#"Kamu adalah Hojicha AI, asisten yang bertugas membuat pesan commit Git yang berkualitas.
+Buatkan pesan commit yang singkat, jelas, dan mengikuti gaya Conventional Commits (misalnya: `feat(auth): add login validation` atau `fix(network): resolve connection timeout`).
+
+Berikut adalah hasil `git diff` dari perubahan kode saat ini:
+```diff
+{}
+```
+
+ATURAN:
+1. Kembalikan HANYA pesan commit dalam satu baris (maksimal 72 karakter).
+2. Jangan sertakan tanda kutip, penjelasan tambahan, Markdown, atau teks pembuka/penutup.
+3. Gunakan bahasa Inggris untuk pesan commit (sesuai standar industri)."#,
+        diff
+    )
+}
+
