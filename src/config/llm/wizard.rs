@@ -421,3 +421,31 @@ fn configure_gemini(theme: &ColorfulTheme, conf: &mut GeminiConfig) -> Result<()
     println!("✅ Konfigurasi Gemini diperbarui di memori!");
     Ok(())
 }
+
+/// Run interactive theme wizard for dark/light selection.
+pub async fn run_theme_menu() -> Result<()> {
+    let mut config = LlmConfig::load_or_create()?;
+    let theme_options = vec!["1. Dark (Mint Green / Default)", "2. Light (Cyan Blue)"];
+    
+    let selection = Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("Pilih tema warna Hojicha:")
+        .default(if config.theme.as_deref() == Some("light") { 1 } else { 0 })
+        .items(&theme_options)
+        .interact()?;
+        
+    match selection {
+        0 => {
+            config.theme = Some("dark".to_string());
+            crate::ui::set_theme(false);
+            println!("✅ Tema diubah ke Dark!");
+        }
+        1 => {
+            config.theme = Some("light".to_string());
+            crate::ui::set_theme(true);
+            println!("✅ Tema diubah ke Light!");
+        }
+        _ => {}
+    }
+    config.save()?;
+    Ok(())
+}

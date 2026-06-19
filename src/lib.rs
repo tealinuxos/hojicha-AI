@@ -85,6 +85,11 @@ fn resolve_kb_path(cli_path: Option<&str>) -> std::path::PathBuf {
 // ─── Main run function ────────────────────────────────────────────────────────
 
 pub async fn run(cli: Cli) -> Result<()> {
+    // Load config to initialize theme first thing
+    if let Ok(config) = crate::config::LlmConfig::load_or_create() {
+        ui::set_theme(config.theme.as_deref() == Some("light"));
+    }
+
     let kb_file_path = resolve_kb_path(cli.kb_path.as_deref());
     // Build RAG pipeline (indexes KB in memory, ~1ms)
     let rag_pipeline = RagPipeline::build(&kb_file_path);
@@ -216,46 +221,42 @@ async fn run_interactive(
         AiClient::Ollama(ollama) => {
             println!(
                 "  {} {}",
-                "Terhubung ke Ollama lokal".green().bold(),
+                ui::color_primary("Terhubung ke Ollama lokal").bold(),
                 format!("(model: {})", ollama.config.model).dimmed()
             );
         }
         AiClient::OpenAi(openai) => {
             println!(
                 "  {} {}",
-                "Terhubung ke OpenAI".green().bold(),
+                ui::color_primary("Terhubung ke OpenAI").bold(),
                 format!("(model: {})", openai.config.model).dimmed()
             );
         }
         AiClient::Gemini(gemini) => {
             println!(
                 "  {} {}",
-                "Terhubung ke Gemini".green().bold(),
+                ui::color_primary("Terhubung ke Gemini").bold(),
                 format!("(model: {})", gemini.config.model).dimmed()
             );
         }
         AiClient::OpenRouter(openrouter) => {
             println!(
                 "  {} {}",
-                format!("Terhubung ke {}", openrouter.provider_name())
-                    .green()
-                    .bold(),
+                ui::color_primary(&format!("Terhubung ke {}", openrouter.provider_name())).bold(),
                 format!("(model: {})", openrouter.config.model).dimmed()
             );
         }
         AiClient::Groq(groq) => {
             println!(
                 "  {} {}",
-                format!("Terhubung ke {}", groq.provider_name())
-                    .green()
-                    .bold(),
+                ui::color_primary(&format!("Terhubung ke {}", groq.provider_name())).bold(),
                 format!("(model: {})", groq.config.model).dimmed()
             );
         }
         AiClient::Local(_) => {
             println!(
                 "  {}",
-                "Menggunakan model built-in lokal".green().bold()
+                ui::color_primary("Menggunakan model built-in lokal").bold()
             );
         }
     }
@@ -296,6 +297,12 @@ async fn run_interactive(
             "model" | "/model" => {
                 if let Err(e) = crate::config::run_model_wizard(ai_client).await {
                     ui::print_error(&format!("Gagal menjalankan konfigurasi model: {}", e));
+                }
+                continue;
+            }
+            "theme" | "/theme" => {
+                if let Err(e) = crate::config::run_theme_menu().await {
+                    ui::print_error(&format!("Gagal menjalankan konfigurasi tema: {}", e));
                 }
                 continue;
             }

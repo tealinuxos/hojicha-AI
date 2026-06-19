@@ -78,6 +78,8 @@ pub struct LlmConfig {
     pub openrouter: OpenRouterConfig,
     #[serde(default)]
     pub groq: GroqConfig,
+    #[serde(default)]
+    pub theme: Option<String>,
 }
 
 impl Default for LlmConfig {
@@ -89,6 +91,7 @@ impl Default for LlmConfig {
             gemini: GeminiConfig::default(),
             openrouter: OpenRouterConfig::default(),
             groq: GroqConfig::default(),
+            theme: Some("dark".to_string()),
         }
     }
 }

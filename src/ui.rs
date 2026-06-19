@@ -1,37 +1,81 @@
 /// UI module: Handles all terminal output formatting with colors and styles.
 use colored::Colorize;
 use std::io::{self, Write};
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::thread;
 use std::time::Duration;
+
+static CURRENT_THEME: AtomicU8 = AtomicU8::new(0); // 0 = Dark (Green), 1 = Light (Cyan)
+
+pub fn set_theme(is_light: bool) {
+    CURRENT_THEME.store(if is_light { 1 } else { 0 }, Ordering::SeqCst);
+}
+
+pub fn is_light_theme() -> bool {
+    CURRENT_THEME.load(Ordering::SeqCst) == 1
+}
+
+pub fn color_primary(s: &str) -> colored::ColoredString {
+    if is_light_theme() {
+        s.truecolor(0, 180, 216) // Blue Cyan
+    } else {
+        s.truecolor(72, 187, 120) // Mint Green
+    }
+}
+
+pub fn color_light(s: &str) -> colored::ColoredString {
+    if is_light_theme() {
+        s.truecolor(72, 202, 228)
+    } else {
+        s.truecolor(104, 211, 145)
+    }
+}
+
+pub fn color_lighter(s: &str) -> colored::ColoredString {
+    if is_light_theme() {
+        s.truecolor(144, 224, 239)
+    } else {
+        s.truecolor(154, 230, 180)
+    }
+}
+
+pub fn color_lightest(s: &str) -> colored::ColoredString {
+    if is_light_theme() {
+        s.truecolor(202, 240, 248)
+    } else {
+        s.truecolor(198, 246, 213)
+    }
+}
 
 // ─── Brand (Shown only at startup) ───────────────────────────────────────────
 
 pub fn print_banner() {
     println!();
-    println!("{}", r#"   __               _ _      _"#.truecolor(72, 187, 120));
-    println!("{}", r#"  / /_  ____  _____(_) /____/ /_  ____ _"#.truecolor(72, 187, 120));
-    println!("{}", r#" / __ \/ __ \/ ___/ / / ___/ __ \/ __ `/"#.truecolor(104, 211, 145));
-    println!("{}", r#"/ / / / /_/ / /__/ / / /__/ / / / /_/ /"#.truecolor(154, 230, 180));
-    println!("{}", r#"/_/ /_/\____/\___/_/_/\___/_/ /_/\__,_/"#.truecolor(198, 246, 213));
+    println!("{}", color_primary(r#"   __               _ _      _"#));
+    println!("{}", color_primary(r#"  / /_  ____  _____(_) /____/ /_  ____ _"#));
+    println!("{}", color_light(r#" / __ \/ __ \/ ___/ / / ___/ __ \/ __ `/"#));
+    println!("{}", color_lighter(r#"/ / / / /_/ / /__/ / / /__/ / / / /_/ /"#));
+    println!("{}", color_lightest(r#"/_/ /_/\____/\___/_/_/\___/_/ /_/\__,_/"#));
     println!();
 }
 
 pub fn print_help() {
-    println!("{}", "CARA PENGGUNAAN:".bold().truecolor(72, 187, 120));
+    println!("{}", color_primary("CARA PENGGUNAAN:").bold());
     println!();
     println!("  {}", "Ketik pertanyaan dalam bahasa Indonesia atau Inggris:".truecolor(200, 200, 200));
     println!();
-    println!("  {} {}", "→".truecolor(104, 211, 145), "cek ram laptop saya".italic().bright_white());
-    println!("  {} {}", "→".truecolor(104, 211, 145), "lihat file di folder ini".italic().bright_white());
-    println!("  {} {}", "→".truecolor(104, 211, 145), "berapa ukuran folder Downloads?".italic().bright_white());
-    println!("  {} {}", "→".truecolor(104, 211, 145), "show running processes".italic().bright_white());
-    println!("  {} {}", "→".truecolor(104, 211, 145), "cek koneksi internet".italic().bright_white());
+    println!("  {} {}", color_light("→"), "cek ram laptop saya".italic().bright_white());
+    println!("  {} {}", color_light("→"), "lihat file di folder ini".italic().bright_white());
+    println!("  {} {}", color_light("→"), "berapa ukuran folder Downloads?".italic().bright_white());
+    println!("  {} {}", color_light("→"), "show running processes".italic().bright_white());
+    println!("  {} {}", color_light("→"), "cek koneksi internet".italic().bright_white());
     println!();
-    println!("{}", "PERINTAH KHUSUS:".bold().truecolor(72, 187, 120));
+    println!("{}", color_primary("PERINTAH KHUSUS:").bold());
     println!();
     println!("  {}  - Keluar dari hojicha", "exit / quit / q".truecolor(72, 187, 120));
     println!("  {}       - Tampilkan bantuan ini", "help / ?".truecolor(72, 187, 120));
     println!("  {}    - Tampilkan model yang digunakan", "model".truecolor(72, 187, 120));
+    println!("  {}    - Ganti tema warna (dark/light)", "theme".truecolor(72, 187, 120));
     println!("  {}    - Bersihkan riwayat percakapan", "clear".truecolor(72, 187, 120));
     println!("  {} - Cari file/folder di Home (~)", "/find <nama>".truecolor(72, 187, 120));
     println!("  {}   - Cari di seluruh laptop", "/find / <nama>".truecolor(72, 187, 120));
@@ -44,7 +88,7 @@ pub fn print_help() {
 // ─── Prompt ──────────────────────────────────────────────────────────────────
 
 pub fn print_prompt() {
-    print!("{} ", "hojicha ❯".truecolor(72, 187, 120).bold());
+    print!("{} ", color_primary("hojicha ❯").bold());
 }
 
 // ─── Minimalist Execution UI ─────────────────────────────────────────────────
@@ -55,7 +99,7 @@ pub fn print_thinking() {
 
 pub fn print_explanation(explanation: &str, tip: Option<&str>) {
     if !explanation.is_empty() {
-        println!("  {} {}", "ℹ".truecolor(104, 211, 145), explanation.truecolor(200, 200, 200));
+        println!("  {} {}", color_light("ℹ"), explanation.truecolor(200, 200, 200));
     }
     if let Some(t) = tip {
         println!("  {} {}", "💡".truecolor(251, 191, 36), t.truecolor(180, 180, 180).italic());
@@ -83,7 +127,7 @@ pub fn print_no_command(explanation: &str) {
 }
 
 pub fn print_executing(command: &str) {
-    println!("{} {}", "▶".green().bold(), command.green());
+    println!("{} {}", color_primary("▶").bold(), color_primary(command));
 }
 
 pub fn print_raw_output(output: &str) {
@@ -108,8 +152,8 @@ pub fn print_cancelled() {
 
 pub fn print_model_info(model: &str, url: &str) {
     println!();
-    println!("  {} {}", "Model:".bold().truecolor(104, 211, 145), model.truecolor(220, 220, 220));
-    println!("  {} {}", "Source:".bold().truecolor(104, 211, 145), url.truecolor(220, 220, 220));
+    println!("  {} {}", color_light("Model:").bold(), model.truecolor(220, 220, 220));
+    println!("  {} {}", color_light("Source:").bold(), url.truecolor(220, 220, 220));
     println!();
 }
 
@@ -119,7 +163,7 @@ pub fn print_history_cleared() {
 
 pub fn print_goodbye() {
     println!();
-    println!("  {}", "Sampai jumpa! Selamat belajar Linux!".green());
+    println!("  {}", color_primary("Sampai jumpa! Selamat belajar Linux!"));
     println!();
 }
 
@@ -138,13 +182,13 @@ pub fn print_search_results(query: &str, results: &[String]) {
     } else {
         println!(
             "  {} {} hasil untuk '{}':",
-            "🔍".truecolor(104, 211, 145),
-            results.len().to_string().bold().truecolor(104, 211, 145),
+            color_light("🔍"),
+            results.len().to_string().bold().truecolor(104, 211, 145), // hit count
             query.bold().white()
         );
         println!();
         for path in results {
-            println!("  {} {}", "→".truecolor(104, 211, 145), path.truecolor(220, 220, 220));
+            println!("  {} {}", color_light("→"), path.truecolor(220, 220, 220));
         }
     }
     println!();
