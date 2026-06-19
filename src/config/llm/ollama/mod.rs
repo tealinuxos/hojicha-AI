@@ -6,7 +6,7 @@ pub struct OllamaConfig {
     pub model: String,
     pub temperature: f32,
     pub max_tokens: usize,
-    
+
     #[serde(default)]
     pub top_p: Option<f32>,
     #[serde(default)]
@@ -28,11 +28,11 @@ impl Default for OllamaConfig {
             model: "qwen2.5:1.5b".to_string(),
             temperature: 0.1,
             max_tokens: 2048,
-            top_p: None,
-            top_k: None,
+            top_p: Some(0.9),
+            top_k: Some(10),
             num_ctx: Some(8192),
             repeat_penalty: None,
-            timeout: Some(30),
+            timeout: Some(60),
             max_retries: Some(3),
         }
     }

@@ -1,8 +1,12 @@
+use crate::config::{GroqConfig, OpenAiConfig, OpenRouterConfig};
 use anyhow::{Context, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use crate::config::OpenAiConfig;
+
+const OPENAI_BASE_URL: &str = "https://api.openai.com/v1";
+const OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
+const GROQ_BASE_URL: &str = "https://api.groq.com/openai/v1";
 
 #[derive(Debug, Serialize)]
 struct OpenAiRequest {
@@ -36,25 +40,59 @@ struct MessageResponse {
 pub struct OpenAiClient {
     client: Client,
     pub config: OpenAiConfig,
+    provider_name: &'static str,
+    default_base_url: &'static str,
 }
 
 impl OpenAiClient {
     pub fn new(config: OpenAiConfig) -> Self {
+        Self::with_provider(config, "OpenAI", OPENAI_BASE_URL)
+    }
+
+    pub fn new_openrouter(config: OpenRouterConfig) -> Self {
+        Self::with_provider(config.into(), "OpenRouter", OPENROUTER_BASE_URL)
+    }
+
+    pub fn new_groq(config: GroqConfig) -> Self {
+        Self::with_provider(config.into(), "Groq", GROQ_BASE_URL)
+    }
+
+    fn with_provider(
+        config: OpenAiConfig,
+        provider_name: &'static str,
+        default_base_url: &'static str,
+    ) -> Self {
         let timeout_secs = config.timeout.unwrap_or(30);
         let client = Client::builder()
             .timeout(Duration::from_secs(timeout_secs))
             .build()
-            .expect("Failed to build HTTP client for OpenAI");
+            .expect("Failed to build HTTP client for OpenAI-compatible provider");
 
-        Self { client, config }
+        Self {
+            client,
+            config,
+            provider_name,
+            default_base_url,
+        }
+    }
+
+    pub fn provider_name(&self) -> &'static str {
+        self.provider_name
     }
 
     pub async fn generate_raw(&self, system: &str, prompt: &str) -> Result<String> {
-        let api_key = self.config.api_key.as_ref()
-            .context("API Key OpenAI tidak ditemukan. Silakan atur lewat menu /model")?;
+        let api_key = self.config.api_key.as_ref().with_context(|| {
+            format!(
+                "API Key {} tidak ditemukan. Silakan atur lewat menu /model",
+                self.provider_name
+            )
+        })?;
 
-        let base_url = self.config.base_url.as_deref()
-            .unwrap_or("https://api.openai.com/v1");
+        let base_url = self
+            .config
+            .base_url
+            .as_deref()
+            .unwrap_or(self.default_base_url);
 
         let url = format!("{}/chat/completions", base_url.trim_end_matches('/'));
 
@@ -74,7 +112,9 @@ impl OpenAiClient {
             max_tokens: self.config.max_tokens,
         };
 
-        let mut req_builder = self.client.post(&url)
+        let mut req_builder = self
+            .client
+            .post(&url)
             .header("Authorization", format!("Bearer {}", api_key))
             .header("Content-Type", "application/json")
             .json(&request);
@@ -86,20 +126,36 @@ impl OpenAiClient {
             req_builder = req_builder.header("OpenAI-Project", proj);
         }
 
-        let res = req_builder.send().await
-            .context("Gagal menghubungi server OpenAI")?;
+        let res = req_builder
+            .send()
+            .await
+            .with_context(|| format!("Gagal menghubungi server {}", self.provider_name))?;
 
         let status = res.status();
-        let text = res.text().await.context("Gagal membaca respons dari OpenAI")?;
+        let text = res
+            .text()
+            .await
+            .with_context(|| format!("Gagal membaca respons dari {}", self.provider_name))?;
 
         if !status.is_success() {
-            anyhow::bail!("OpenAI API error (status {}): {}", status, text);
+            anyhow::bail!(
+                "{} API error (status {}): {}",
+                self.provider_name,
+                status,
+                text
+            );
         }
 
-        let response: OpenAiResponse = serde_json::from_str(&text)
-            .with_context(|| format!("Gagal mengurai respons JSON OpenAI: {}", text))?;
+        let response: OpenAiResponse = serde_json::from_str(&text).with_context(|| {
+            format!(
+                "Gagal mengurai respons JSON {}: {}",
+                self.provider_name, text
+            )
+        })?;
 
-        let content = response.choices.first()
+        let content = response
+            .choices
+            .first()
             .map(|c| c.message.content.clone())
             .unwrap_or_default();
 

@@ -3,6 +3,8 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
+use crate::config::OllamaConfig;
+
 #[derive(Debug, Serialize)]
 struct OllamaRequest {
     model: String,
@@ -15,10 +17,13 @@ struct OllamaRequest {
 #[derive(Debug, Serialize)]
 struct OllamaOptions {
     temperature: f32,
-    num_predict: u32,
-    top_k: u32,
+    num_predict: usize,
+    top_k: usize,
     top_p: f32,
-    stop: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    num_ctx: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    repeat_penalty: Option<f32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -31,27 +36,26 @@ struct OllamaResponse {
 
 pub struct OllamaClient {
     client: Client,
-    pub base_url: String,
-    pub model: String,
+    pub config: OllamaConfig,
 }
 
 impl OllamaClient {
-    pub fn new(base_url: &str, model: &str) -> Self {
+    pub fn new(config: OllamaConfig) -> Self {
+        let timeout_secs = config.timeout.unwrap_or(60);
         let client = Client::builder()
-            .timeout(Duration::from_secs(60))
+            .timeout(Duration::from_secs(timeout_secs))
             .build()
-            .expect("Failed to build HTTP client");
+            .expect("Failed to build HTTP client for Ollama");
 
-        Self {
-            client,
-            base_url: base_url.to_string(),
-            model: model.to_string(),
-        }
+        Self { client, config }
     }
 
     pub async fn ping(&self) -> bool {
         self.client
-            .get(&format!("{}/api/tags", self.base_url))
+            .get(&format!(
+                "{}/api/tags",
+                self.config.base_url.trim_end_matches('/')
+            ))
             .send()
             .await
             .map(|r| r.status().is_success())
@@ -60,29 +64,38 @@ impl OllamaClient {
 
     pub async fn generate_raw(&self, system: &str, prompt: &str) -> Result<String> {
         let request = OllamaRequest {
-            model: self.model.clone(),
+            model: self.config.model.clone(),
             prompt: prompt.to_string(),
             system: system.to_string(),
             stream: false,
             options: OllamaOptions {
-                temperature: 0.1,
-                num_predict: 2048,
-                top_k: 10,
-                top_p: 0.9,
-                stop: vec![],
+                temperature: self.config.temperature,
+                num_predict: self.config.max_tokens,
+                top_k: self.config.top_k.unwrap_or(10),
+                top_p: self.config.top_p.unwrap_or(0.9),
+                num_ctx: self.config.num_ctx,
+                repeat_penalty: self.config.repeat_penalty,
             },
         };
 
+        let url = format!(
+            "{}/api/generate",
+            self.config.base_url.trim_end_matches('/')
+        );
+
         let res = self
             .client
-            .post(&format!("{}/api/generate", self.base_url))
+            .post(&url)
             .json(&request)
             .send()
             .await
-            .context("Gagal menghubungi Ollama. Apakah Ollama sudah dijalankan?")?;
+            .context("Gagal menghubungi Ollama. Pastikan Ollama sudah berjalan.")?;
 
         let status = res.status();
-        let text = res.text().await.context("Gagal membaca body respons dari Ollama")?;
+        let text = res
+            .text()
+            .await
+            .context("Gagal membaca body respons dari Ollama")?;
 
         if !status.is_success() {
             anyhow::bail!("Ollama error (status {}): {}", status, text);

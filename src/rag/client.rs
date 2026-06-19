@@ -1,11 +1,9 @@
-use anyhow::Result;
-use serde::{Deserialize, Serialize};
-use crate::rag::native::NativeModelClient;
+use crate::rag::gemini::GeminiClient;
 use crate::rag::ollama::OllamaClient;
 use crate::rag::openai::OpenAiClient;
-use crate::rag::gemini::GeminiClient;
-use crate::rag::anthropic::AnthropicClient;
 use crate::rag::utils::extract_json;
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct CommandResponse {
@@ -31,10 +29,10 @@ pub struct OutputSummary {
 
 pub enum AiClient {
     Ollama(OllamaClient),
-    Native(NativeModelClient),
     OpenAi(OpenAiClient),
     Gemini(GeminiClient),
-    Anthropic(AnthropicClient),
+    OpenRouter(OpenAiClient),
+    Groq(OpenAiClient),
 }
 
 impl AiClient {
@@ -46,14 +44,12 @@ impl AiClient {
     ) -> Result<CommandResponse> {
         let raw = match self {
             Self::Ollama(ollama) => ollama.generate_raw(system_prompt, user_input).await?,
-            Self::Native(native) => {
-                let sys = system_prompt.to_string();
-                let usr = user_input.to_string();
-                native.generate_raw(&sys, &usr)?
-            }
             Self::OpenAi(openai) => openai.generate_raw(system_prompt, user_input).await?,
             Self::Gemini(gemini) => gemini.generate_raw(system_prompt, user_input).await?,
-            Self::Anthropic(anthropic) => anthropic.generate_raw(system_prompt, user_input).await?,
+            Self::OpenRouter(openrouter) => {
+                openrouter.generate_raw(system_prompt, user_input).await?
+            }
+            Self::Groq(groq) => groq.generate_raw(system_prompt, user_input).await?,
         };
 
         let json_str = extract_json(&raw);
@@ -61,7 +57,7 @@ impl AiClient {
             Ok(resp) => Ok(resp),
             Err(_) => {
                 let raw_trimmed = raw.trim();
-                let is_conversational = raw_trimmed.starts_with('{') == false 
+                let is_conversational = raw_trimmed.starts_with('{') == false
                     && (raw_trimmed.to_lowercase().starts_with("hello")
                         || raw_trimmed.to_lowercase().starts_with("hi")
                         || raw_trimmed.to_lowercase().starts_with("halo")
@@ -114,19 +110,23 @@ impl AiClient {
     ) -> Result<OutputSummary> {
         let raw = match self {
             Self::Ollama(ollama) => ollama.generate_raw(system_prompt, summary_prompt).await?,
-            Self::Native(native) => {
-                let sys = system_prompt.to_string();
-                let sum = summary_prompt.to_string();
-                native.generate_raw(&sys, &sum)?
-            }
             Self::OpenAi(openai) => openai.generate_raw(system_prompt, summary_prompt).await?,
             Self::Gemini(gemini) => gemini.generate_raw(system_prompt, summary_prompt).await?,
-            Self::Anthropic(anthropic) => anthropic.generate_raw(system_prompt, summary_prompt).await?,
+            Self::OpenRouter(openrouter) => {
+                openrouter
+                    .generate_raw(system_prompt, summary_prompt)
+                    .await?
+            }
+            Self::Groq(groq) => groq.generate_raw(system_prompt, summary_prompt).await?,
         };
 
         let json_str = extract_json(&raw);
         serde_json::from_str::<OutputSummary>(&json_str).map_err(|e| {
-            anyhow::anyhow!("Gagal mengurai ringkasan output. Err: {}. Raw:\n{}", e, &raw[..raw.len().min(300)])
+            anyhow::anyhow!(
+                "Gagal mengurai ringkasan output. Err: {}. Raw:\n{}",
+                e,
+                &raw[..raw.len().min(300)]
+            )
         })
     }
 }

@@ -6,7 +6,7 @@ pub struct GeminiConfig {
     pub model: String,
     pub temperature: f32,
     pub max_tokens: usize,
-    
+
     #[serde(default)]
     pub base_url: Option<String>,
     #[serde(default)]
@@ -23,7 +23,7 @@ impl Default for GeminiConfig {
     fn default() -> Self {
         Self {
             api_key: None,
-            model: "gemini-1.5-flash".to_string(),
+            model: "gemini-3.5-flash-lite-latest".to_string(),
             temperature: 0.2,
             max_tokens: 2048,
             base_url: None,

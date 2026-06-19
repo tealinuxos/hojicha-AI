@@ -1,60 +1,98 @@
-pub mod native;
+pub mod gemini;
+pub mod groq;
 pub mod ollama;
 pub mod openai;
-pub mod gemini;
-pub mod anthropic;
+pub mod openrouter;
 pub mod wizard;
 
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-use self::native::NativeConfig;
+use self::gemini::GeminiConfig;
+use self::groq::GroqConfig;
 use self::ollama::OllamaConfig;
 use self::openai::OpenAiConfig;
-use self::gemini::GeminiConfig;
-use self::anthropic::AnthropicConfig;
+use self::openrouter::OpenRouterConfig;
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum LlmType {
-    #[serde(alias = "local")]
-    Native,
-    Api,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ApiProvider {
     Ollama,
     Openai,
     Gemini,
-    Anthropic,
+    Openrouter,
+    Groq,
+}
+
+impl Default for ApiProvider {
+    fn default() -> Self {
+        Self::Ollama
+    }
+}
+
+impl ApiProvider {
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Self::Ollama => "Ollama",
+            Self::Openai => "OpenAI",
+            Self::Gemini => "Gemini",
+            Self::Openrouter => "OpenRouter",
+            Self::Groq => "Groq",
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for ApiProvider {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw = Option::<String>::deserialize(deserializer)?.unwrap_or_default();
+        let normalized = raw
+            .trim()
+            .chars()
+            .filter(|c| *c != '_' && *c != '-')
+            .collect::<String>()
+            .to_ascii_lowercase();
+
+        Ok(match normalized.as_str() {
+            "ollama" => Self::Ollama,
+            "openai" => Self::Openai,
+            "gemini" => Self::Gemini,
+            "openrouter" => Self::Openrouter,
+            "groq" => Self::Groq,
+            _ => Self::Ollama,
+        })
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LlmConfig {
-    pub active: LlmType,
+    #[serde(default)]
     pub active_api_provider: ApiProvider,
-    #[serde(alias = "local")]
-    pub native: NativeConfig,
+    #[serde(default)]
     pub ollama: OllamaConfig,
+    #[serde(default)]
     pub openai: OpenAiConfig,
+    #[serde(default)]
     pub gemini: GeminiConfig,
-    pub anthropic: AnthropicConfig,
+    #[serde(default)]
+    pub openrouter: OpenRouterConfig,
+    #[serde(default)]
+    pub groq: GroqConfig,
 }
 
 impl Default for LlmConfig {
     fn default() -> Self {
         Self {
-            active: LlmType::Api,
             active_api_provider: ApiProvider::Ollama,
-            native: NativeConfig::default(),
             ollama: OllamaConfig::default(),
             openai: OpenAiConfig::default(),
             gemini: GeminiConfig::default(),
-            anthropic: AnthropicConfig::default(),
+            openrouter: OpenRouterConfig::default(),
+            groq: GroqConfig::default(),
         }
     }
 }
@@ -79,8 +117,7 @@ impl LlmConfig {
             return Ok(default_config);
         }
 
-        let content = fs::read_to_string(&path)
-            .context("Gagal membaca file konfigurasi LLM")?;
+        let content = fs::read_to_string(&path).context("Gagal membaca file konfigurasi LLM")?;
         let config: LlmConfig = serde_json::from_str(&content)
             .context("Gagal mengurai file konfigurasi LLM (JSON tidak valid)")?;
         Ok(config)
@@ -90,13 +127,11 @@ impl LlmConfig {
     pub fn save(&self) -> Result<()> {
         let path = Self::default_path()?;
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)
-                .context("Gagal membuat direktori konfigurasi")?;
+            fs::create_dir_all(parent).context("Gagal membuat direktori konfigurasi")?;
         }
         let content = serde_json::to_string_pretty(self)
             .context("Gagal mengonversi konfigurasi LLM ke JSON")?;
-        fs::write(&path, content)
-            .context("Gagal menulis file konfigurasi LLM")?;
+        fs::write(&path, content).context("Gagal menulis file konfigurasi LLM")?;
         Ok(())
     }
 }

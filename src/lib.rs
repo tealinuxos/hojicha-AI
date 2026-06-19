@@ -1,6 +1,5 @@
 /// Hojicha-AI: Lightweight AI-powered Linux CLI assistant for beginners.
 /// Hybrid RAG architecture: Intent → Rules → RAG → LLM → Safety → Exec
-
 pub mod config;
 pub mod executor;
 pub mod rag;
@@ -11,7 +10,7 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use executor::execute_command;
-use rag::{AiClient, NativeModelClient, OllamaClient, OpenAiClient, GeminiClient, AnthropicClient, RagPipeline};
+use rag::{AiClient, RagPipeline};
 use safety::{check_safety, RiskLevel};
 use std::io::{self, Write};
 
@@ -26,18 +25,6 @@ use std::io::{self, Write};
 pub struct Cli {
     /// Pertanyaan atau perintah dalam bahasa alami (opsional - tanpa argumen masuk mode interaktif)
     pub query: Option<String>,
-
-    /// URL server Ollama
-    #[arg(long, default_value = "http://localhost:11434")]
-    pub ollama_url: String,
-
-    /// Nama model Ollama yang akan digunakan
-    #[arg(short, long, default_value = "qwen2.5:1.5b")]
-    pub model: String,
-
-    /// Gunakan model built-in offline native (tanpa memerlukan Ollama)
-    #[arg(short, long, default_value_t = false)]
-    pub native: bool,
 
     /// Jangan tampilkan ringkasan output AI (lebih cepat)
     #[arg(long, default_value_t = false)]
@@ -91,72 +78,17 @@ pub async fn run(cli: Cli) -> Result<()> {
     // Load configuration
     let config = crate::config::LlmConfig::load_or_create()?;
 
-    // Determine whether to use native or API model
-    let force_native = cli.native;
-    let override_ollama = std::env::args().any(|arg| arg == "--ollama-url" || arg == "--model" || arg == "-m");
-
-    let mut ai_client = if force_native {
-        AiClient::Native(NativeModelClient::load_with_config(config.native.clone())?)
-    } else if override_ollama {
-        let ollama_url = if std::env::args().any(|arg| arg == "--ollama-url") {
-            cli.ollama_url.clone()
-        } else {
-            config.ollama.base_url.clone()
-        };
-        let model = if std::env::args().any(|arg| arg.starts_with("-m") || arg == "--model") {
-            cli.model.clone()
-        } else {
-            config.ollama.model.clone()
-        };
-        let ollama = OllamaClient::new(&ollama_url, &model);
-        if ollama.ping().await {
-            AiClient::Ollama(ollama)
-        } else {
-            println!(
-                "⚠️  {} {}",
-                "Tidak bisa terhubung ke Ollama.".yellow().bold(),
-                "Mengaktifkan model built-in offline native...".yellow()
-            );
-            println!();
-            AiClient::Native(NativeModelClient::load_with_config(config.native.clone())?)
-        }
-    } else {
-        match config.active {
-            crate::config::LlmType::Native => {
-                AiClient::Native(NativeModelClient::load_with_config(config.native.clone())?)
-            }
-            crate::config::LlmType::Api => {
-                match config.active_api_provider {
-                    crate::config::ApiProvider::Ollama => {
-                        let ollama = OllamaClient::new(&config.ollama.base_url, &config.ollama.model);
-                        if ollama.ping().await {
-                            AiClient::Ollama(ollama)
-                        } else {
-                            println!(
-                                "⚠️  {} {}",
-                                "Tidak bisa terhubung ke Ollama.".yellow().bold(),
-                                "Mengaktifkan model built-in offline native...".yellow()
-                            );
-                            println!();
-                            AiClient::Native(NativeModelClient::load_with_config(config.native.clone())?)
-                        }
-                    }
-                    crate::config::ApiProvider::Openai => {
-                        AiClient::OpenAi(OpenAiClient::new(config.openai.clone()))
-                    }
-                    crate::config::ApiProvider::Gemini => {
-                        AiClient::Gemini(GeminiClient::new(config.gemini.clone()))
-                    }
-                    crate::config::ApiProvider::Anthropic => {
-                        AiClient::Anthropic(AnthropicClient::new(config.anthropic.clone()))
-                    }
-                }
-            }
-        }
-    };
+    let mut ai_client = crate::config::load_ai_client_from_config(&config).await?;
 
     if let Some(query) = &cli.query {
-        return run_single_query(&mut ai_client, &rag_pipeline, query, cli.no_summary, cli.yes).await;
+        return run_single_query(
+            &mut ai_client,
+            &rag_pipeline,
+            query,
+            cli.no_summary,
+            cli.yes,
+        )
+        .await;
     }
 
     run_interactive(&mut ai_client, &rag_pipeline, cli.no_summary, cli.yes).await
@@ -189,15 +121,8 @@ async fn run_interactive(
         AiClient::Ollama(ollama) => {
             println!(
                 "  {} {}",
-                "Terhubung ke Ollama".green().bold(),
-                format!("(model: {})", ollama.model).dimmed()
-            );
-        }
-        AiClient::Native(_) => {
-            println!(
-                "  {} {}",
-                "Model built-in native".green().bold(),
-                "(SmolLM2-135M · Offline)".dimmed()
+                "Terhubung ke Ollama lokal".green().bold(),
+                format!("(model: {})", ollama.config.model).dimmed()
             );
         }
         AiClient::OpenAi(openai) => {
@@ -214,11 +139,22 @@ async fn run_interactive(
                 format!("(model: {})", gemini.config.model).dimmed()
             );
         }
-        AiClient::Anthropic(anthropic) => {
+        AiClient::OpenRouter(openrouter) => {
             println!(
                 "  {} {}",
-                "Terhubung ke Anthropic".green().bold(),
-                format!("(model: {})", anthropic.config.model).dimmed()
+                format!("Terhubung ke {}", openrouter.provider_name())
+                    .green()
+                    .bold(),
+                format!("(model: {})", openrouter.config.model).dimmed()
+            );
+        }
+        AiClient::Groq(groq) => {
+            println!(
+                "  {} {}",
+                format!("Terhubung ke {}", groq.provider_name())
+                    .green()
+                    .bold(),
+                format!("(model: {})", groq.config.model).dimmed()
             );
         }
     }

@@ -41,16 +41,19 @@ struct GenerationConfig {
 
 #[derive(Debug, Deserialize)]
 struct GeminiResponse {
+    #[serde(default)]
     candidates: Vec<Candidate>,
 }
 
 #[derive(Debug, Deserialize)]
 struct Candidate {
+    #[serde(default)]
     content: ContentResponse,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 struct ContentResponse {
+    #[serde(default)]
     parts: Vec<PartResponse>,
 }
 
