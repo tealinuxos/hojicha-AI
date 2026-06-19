@@ -203,7 +203,7 @@
     "id": "file-pwd",
     "command": "pwd",
     "description": "Menampilkan lokasi direktori saat ini (posisi Anda di sistem file)",
-    "keywords": ["pwd", "lokasi", "posisi", "current directory", "di mana saya", "folder sekarang"],
+    "keywords": ["pwd", "lokasi", "posisi", "current directory", "di mana saya", "folder sekarang", "saya dimana", "dimana saya", "saya berada dimana", "berada dimana", "di mana", "dimana"],
     "category": "Files",
     "risk": "Safe",
     "example": "pwd",

@@ -203,7 +203,7 @@
     "id": "file-pwd",
     "command": "pwd",
     "description": "Menampilkan lokasi direktori saat ini (posisi Anda di sistem file)",
-    "keywords": ["pwd", "lokasi", "posisi", "current directory", "di mana saya", "folder sekarang"],
+    "keywords": ["pwd", "lokasi", "posisi", "current directory", "di mana saya", "folder sekarang", "saya dimana", "dimana saya", "saya berada dimana", "berada dimana", "di mana", "dimana"],
     "category": "Files",
     "risk": "Safe",
     "example": "pwd",
@@ -421,13 +421,13 @@
   },
   {
     "id": "cpu-temp",
-    "command": "sysctl -n machdep.xcpm.cpu_thermal_level",
-    "description": "Membaca level termal CPU pada macOS (0 berarti normal, angka lebih tinggi menunjukkan throttling)",
+    "command": "sudo powermetrics -n 1 --samplers smc | grep -i \"CPU die temperature\"",
+    "description": "Membaca suhu riil CPU pada macOS (mendukung Apple Silicon M1/M2/M3/M4 dan Intel)",
     "keywords": ["suhu", "panas", "temperatur", "temp", "cpu temp", "thermal"],
     "category": "Cpu",
-    "risk": "Safe",
-    "example": "sysctl -n machdep.xcpm.cpu_thermal_level",
-    "beginner_tip": "Untuk melihat suhu riil dalam derajat Celsius di macOS, diperlukan tool eksternal seperti 'osx-cpu-temp'"
+    "risk": "Moderate",
+    "example": "sudo powermetrics -n 1 --samplers smc | grep -i \"CPU die temperature\"",
+    "beginner_tip": "Perintah ini memerlukan hak akses root (sudo) untuk membaca sensor SMC pada hardware Mac Anda"
   },
   {
     "id": "text-wc",

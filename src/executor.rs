@@ -1,6 +1,10 @@
 /// Executor module: Runs shell commands and captures output.
 use anyhow::Result;
 use std::process::Command;
+use std::sync::Mutex;
+use std::path::PathBuf;
+
+static PREV_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
 
 /// Maximum output lines to retain (prevents memory blowup from verbose commands)
 const MAX_OUTPUT_LINES: usize = 500;
@@ -26,33 +30,58 @@ pub fn execute_command(command: &str) -> Result<CommandOutput> {
         
         let mut cd_success = false;
         let mut err_msg = String::new();
+        let current_dir = std::env::current_dir().ok();
 
-        if first_cmd == "cd" {
-            if let Ok(home) = std::env::var("HOME") {
-                if let Err(e) = std::env::set_current_dir(&home) {
-                    err_msg = format!("cd: {}", e);
-                } else {
-                    cd_success = true;
-                }
-            } else {
-                err_msg = "cd: HOME environment variable not set".to_string();
-            }
+        let target_path = if first_cmd == "cd" {
+            std::env::var("HOME").ok().map(PathBuf::from)
         } else if first_cmd.starts_with("cd ") {
             let path_str = first_cmd[3..].trim();
             let path_str = path_str.trim_matches(|c| c == '"' || c == '\'');
-            let path = std::path::Path::new(path_str);
+            
+            if path_str == "-" {
+                let prev = PREV_DIR.lock().unwrap().clone();
+                if prev.is_none() {
+                    err_msg = "cd: OLDPWD tidak diset".to_string();
+                }
+                prev
+            } else if path_str == "~" {
+                std::env::var("HOME").ok().map(PathBuf::from)
+            } else if path_str.starts_with("~/") {
+                if let Ok(home) = std::env::var("HOME") {
+                    Some(PathBuf::from(home).join(&path_str[2..]))
+                } else {
+                    Some(PathBuf::from(path_str))
+                }
+            } else {
+                Some(PathBuf::from(path_str))
+            }
+        } else {
+            None
+        };
+
+        if let Some(ref path) = target_path {
             if let Err(e) = std::env::set_current_dir(path) {
-                err_msg = format!("cd: {}: {}", path_str, e);
+                err_msg = format!("cd: {}: {}", path.display(), e);
             } else {
                 cd_success = true;
+                if let Some(old) = current_dir {
+                    *PREV_DIR.lock().unwrap() = Some(old);
+                }
             }
+        } else if err_msg.is_empty() {
+            err_msg = "cd: Gagal menentukan direktori target".to_string();
         }
 
         // If it's a simple cd command (not compound), return immediately
         if !is_compound {
             if cd_success {
+                let stdout = if first_cmd.ends_with(" -") {
+                    std::env::current_dir().map(|p| format!("{}\n", p.display())).unwrap_or_default()
+                } else {
+                    String::new()
+                };
                 return Ok(CommandOutput {
-                    stdout: String::new(),
+                    stdout,
                     stderr: String::new(),
                     exit_code: 0,
                     success: true,
