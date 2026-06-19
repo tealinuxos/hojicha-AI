@@ -172,7 +172,8 @@ impl RagPipeline {
         context.push_str(info_str);
 
         // 6. Build RAG-augmented system prompt (with keyword-driven few-shot)
-        let system = build_rag_system_prompt(&context);
+        let os_name = if cfg!(target_os = "macos") { "macOS" } else { "Linux" };
+        let system = build_rag_system_prompt(&context, os_name);
 
         // 7. Build user input with conversation history for multi-turn context
         // FIXED: Previously, history was accepted as a parameter but never passed
@@ -287,8 +288,8 @@ fn build_context(entries: &[crate::rag::retriever::RetrievedEntry<'_>]) -> Strin
     ctx
 }
 
-fn build_rag_system_prompt(context: &str) -> String {
-    let base = crate::rag::system_prompt();
+fn build_rag_system_prompt(context: &str, os_name: &str) -> String {
+    let base = crate::rag::system_prompt(os_name);
     if context.is_empty() {
         return base;
     }
