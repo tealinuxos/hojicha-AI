@@ -1,5 +1,5 @@
 pkgname=hojicha-ai-git
-pkgver=0.1.0
+pkgver=r8.b5a3bf4
 pkgrel=1
 pkgdesc="Lightweight AI-powered Linux CLI assistant for beginners"
 arch=('x86_64')
@@ -9,24 +9,23 @@ depends=('gcc-libs')
 makedepends=('cargo' 'git')
 provides=("hojicha-ai")
 conflicts=("hojicha-ai")
-source=("git+https://github.com/tealinuxos/hojicha-AI.git")
-md5sums=('SKIP')
+source=()
+md5sums=()
 
 pkgver() {
-  cd "$srcdir/hojicha-AI"
+  cd "$startdir"
   printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
 }
 
 build() {
 	CFLAGS+=' -ffat-lto-objects'
-  cd "$srcdir/hojicha-AI"
+  cd "$startdir"
   export RUSTUP_TOOLCHAIN=stable
   export CARGO_TARGET_DIR=target
-  cargo build --release
+  cargo build --release --locked
 }
 
 package() {
-  cd "$srcdir/hojicha-AI"
+  cd "$startdir"
   install -Dm0755 -t "$pkgdir/usr/bin/" "target/release/hojicha"
 }
-
