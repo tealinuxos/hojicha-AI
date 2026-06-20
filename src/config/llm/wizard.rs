@@ -390,11 +390,8 @@ fn configure_gemini(theme: &ColorfulTheme, conf: &mut GeminiConfig) -> Result<()
         "Gemini",
         &conf.model,
         &[
-            "gemini-3.5-flash-lite-latest",
-            "gemini-3.5-flash",
-            "gemini-flash-latest",
-            "gemini-2.5-flash",
-            "gemini-2.5-pro",
+            "gemini-3-flash-preview",
+            "gemini-3.1-flash-lite",
         ],
     )?;
 

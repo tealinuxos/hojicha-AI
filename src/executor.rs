@@ -18,6 +18,23 @@ pub struct CommandOutput {
 /// Output is truncated to MAX_OUTPUT_LINES to prevent memory issues
 /// from extremely verbose commands (e.g., `find /`).
 pub fn execute_command(command: &str) -> Result<CommandOutput> {
+    // Persistent directory navigation (cd handling)
+    let trimmed = command.trim();
+    if trimmed == "cd" || trimmed.starts_with("cd ") {
+        let first_cmd = trimmed.split(|c| c == ';' || c == '&' || c == '|').next().unwrap_or(trimmed).trim();
+        if first_cmd == "cd" {
+            if let Ok(home) = std::env::var("HOME") {
+                let _ = std::env::set_current_dir(&home);
+            }
+        } else if first_cmd.starts_with("cd ") {
+            let path_str = first_cmd[3..].trim();
+            let path_str = path_str.trim_matches(|c| c == '"' || c == '\'');
+            if std::path::Path::new(path_str).is_dir() {
+                let _ = std::env::set_current_dir(path_str);
+            }
+        }
+    }
+
     let output = Command::new("sh")
         .arg("-c")
         .arg(command)

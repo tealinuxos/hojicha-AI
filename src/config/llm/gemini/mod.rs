@@ -23,7 +23,7 @@ impl Default for GeminiConfig {
     fn default() -> Self {
         Self {
             api_key: None,
-            model: "gemini-3.5-flash-lite-latest".to_string(),
+            model: "gemini-3-flash-preview".to_string(),
             temperature: 0.2,
             max_tokens: 2048,
             base_url: None,

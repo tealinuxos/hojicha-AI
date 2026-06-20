@@ -5,9 +5,106 @@ use anyhow::Result;
 use std::collections::HashMap;
 
 use crate::rag::client::{AiClient, CommandResponse};
-use crate::rag::kb::KnowledgeBase;
+use crate::rag::kb::{KnowledgeBase, KbEntry, RiskTag};
 use crate::rag::reranker::rerank;
 use crate::rag::retriever::HybridRetriever;
+
+const GREETING_TOKENS: &[&str] = &[
+    "halo", "hai", "hello", "hi", "hey",
+    "selamat pagi", "selamat siang", "selamat malam", "selamat sore",
+    "apa kabar", "gimana kabar", "siapa kamu", "kamu siapa",
+    "bisa apa", "kamu bisa apa", "kamu apaan", "hojicha",
+];
+
+fn is_greeting(input: &str) -> bool {
+    let lower = input.to_lowercase();
+    let trimmed = lower.trim();
+    GREETING_TOKENS.iter().any(|&g| trimmed == g || trimmed.starts_with(g))
+}
+
+fn make_greeting_response() -> CommandResponse {
+    let info: serde_json::Value = serde_json::from_str(
+        include_str!("../data/general_info.json")
+    ).unwrap_or_default();
+    
+    let kemampuan = info["kemampuan"]
+        .as_array()
+        .map(|arr| arr.iter()
+            .filter_map(|v| v.as_str())
+            .enumerate()
+            .map(|(i, s)| format!("{}. {}", i + 1, s))
+            .collect::<Vec<_>>()
+            .join(" "))
+        .unwrap_or_default();
+
+    CommandResponse {
+        command: None,
+        explanation: format!(
+            "Halo! Saya {}, {}. Berikut yang bisa saya bantu: {}",
+            info["nama_asisten"].as_str().unwrap_or("Hojicha"),
+            info["peran"].as_str().unwrap_or(""),
+            kemampuan
+        ),
+        beginner_tip: Some(
+            info["saran_penggunaan"].as_str().unwrap_or("").to_string()
+        ),
+        is_safe: true,
+    }
+}
+
+fn is_dynamic_command(command: &str) -> bool {
+    let cmd = command.trim();
+    cmd == "cd" ||
+    cmd == "cat" ||
+    cmd == "rm" ||
+    cmd == "mkdir" ||
+    cmd == "cp" ||
+    cmd == "mv" ||
+    cmd == "less" ||
+    cmd == "grep" ||
+    cmd == "chmod" ||
+    cmd == "chown" ||
+    cmd == "brew install" ||
+    cmd == "brew uninstall" ||
+    cmd == "brew search" ||
+    cmd.ends_with("grep") ||
+    cmd.ends_with("-name")
+}
+
+fn keyword_preproc<'a>(
+    kb: &'a KnowledgeBase,
+    input: &str,
+) -> Option<&'a KbEntry> {
+    let lower = input.to_lowercase();
+    let tokens: Vec<&str> = lower.split_whitespace().collect();
+
+    let mut best: Option<(&KbEntry, usize)> = None;
+
+    for entry in &kb.entries {
+        let matched = entry.keywords.iter().filter(|kw| {
+            let kw_lower = kw.to_lowercase();
+            lower.contains(kw_lower.as_str())
+        }).count();
+
+        if matched == 0 { continue; }
+
+        let coverage = {
+            let kw_tokens: usize = entry.keywords.iter()
+                .filter(|kw| lower.contains(kw.to_lowercase().as_str()))
+                .map(|kw| kw.split_whitespace().count())
+                .sum();
+            kw_tokens as f32 / tokens.len().max(1) as f32
+        };
+
+        if coverage >= 0.4 {
+            if best.map_or(true, |(_, m)| matched > m) {
+                best = Some((entry, matched));
+            }
+        }
+    }
+
+    best.map(|(entry, _)| entry)
+}
 
 /// Singleton-style pipeline — built once, reused across queries
 pub struct RagPipeline {
@@ -36,7 +133,24 @@ impl RagPipeline {
         user_input: &str,
         history: &[(String, String)],
     ) -> Result<CommandResponse> {
-        // 1. Rewrite query using KB keyword synonym expansion
+        // 1. Preprocess: Check for greeting
+        if is_greeting(user_input) {
+            return Ok(make_greeting_response());
+        }
+
+        // 2. Preprocess: Check for exact keyword match in KB
+        if let Some(entry) = keyword_preproc(&self.kb, user_input) {
+            if !is_dynamic_command(&entry.command) {
+                return Ok(CommandResponse {
+                    command: Some(entry.command.clone()),
+                    explanation: entry.description.clone(),
+                    beginner_tip: Some(entry.beginner_tip.clone()),
+                    is_safe: matches!(entry.risk, RiskTag::Safe | RiskTag::Moderate),
+                });
+            }
+        }
+
+        // 3. Rewrite query using KB keyword synonym expansion
         let rewritten = self.rewrite_query(user_input);
 
         // 2. Hybrid retrieval

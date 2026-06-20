@@ -10,9 +10,11 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use executor::execute_command;
-use rag::{AiClient, RagPipeline};
+use rag::{AiClient, LocalModelClient, RagPipeline};
 use safety::{check_safety, RiskLevel};
+use serde_json::Value;
 use std::io::{self, Write};
+use std::path::Path;
 
 // ─── CLI Definition ───────────────────────────────────────────────────────────
 
@@ -21,10 +23,26 @@ use std::io::{self, Write};
 #[command(name = "hojicha")]
 #[command(version = "0.1.0")]
 #[command(about = "Asisten Terminal Linux bertenaga AI untuk Pemula", long_about = None)]
-#[command(after_help = "Contoh: hojicha \"cek ram laptop saya\"")]
+#[command(after_help = "Contoh:\n  hojicha \"cek ram laptop saya\"\n  hojicha --opencode http://127.0.0.1:20128/v1 \"hello\"\n  hojicha --opencode http://127.0.0.1:20128/v1 model-name \"hello\"")]
 pub struct Cli {
     /// Pertanyaan atau perintah dalam bahasa alami (opsional - tanpa argumen masuk mode interaktif)
     pub query: Option<String>,
+
+    /// URL server Ollama
+    #[arg(long, default_value = "http://localhost:11434")]
+    pub ollama_url: String,
+
+    /// Nama model Ollama yang akan digunakan
+    #[arg(short, long, default_value = "qwen2.5:1.5b")]
+    pub model: String,
+
+    /// Gunakan model built-in offline lokal (tanpa memerlukan Ollama)
+    #[arg(short, long, default_value_t = false)]
+    pub local: bool,
+
+    /// Gunakan OpenAI-compatible API: --opencode <URL> [MODEL_NAME]
+    #[arg(long, num_args = 1..=2)]
+    pub opencode: Option<Vec<String>>,
 
     /// Jangan tampilkan ringkasan output AI (lebih cepat)
     #[arg(long, default_value_t = false)]
@@ -51,20 +69,16 @@ fn resolve_kb_path(cli_path: Option<&str>) -> std::path::PathBuf {
     };
     let filename = format!("knowledge_base_{}.json", suffix);
 
-    // 1. Check in the current working directory
-    let cwd_path = std::path::Path::new("src/data").join(&filename);
-    if cwd_path.exists() {
-        return cwd_path;
-    }
-
-    // 2. Fallback to ~/.config/hojicha/knowledge_base_<suffix>.json
+    // Primary: ~/.config/hojicha/knowledge_base_<os>.json
+    // If file not found, kb.rs will auto-create it from embedded data on first run.
     if let Ok(home) = std::env::var("HOME") {
         std::path::PathBuf::from(home)
             .join(".config")
             .join("hojicha")
             .join(&filename)
     } else {
-        std::path::PathBuf::from("src/data").join(&filename)
+        // Fallback: path that likely won't exist — kb.rs embedded fallback will handle it
+        std::path::PathBuf::from("/tmp").join(&filename)
     }
 }
 
@@ -75,10 +89,58 @@ pub async fn run(cli: Cli) -> Result<()> {
     // Build RAG pipeline (indexes KB in memory, ~1ms)
     let rag_pipeline = RagPipeline::build(&kb_file_path);
 
-    // Load configuration
-    let config = crate::config::LlmConfig::load_or_create()?;
+    // Load AI client based on priority: --local > --opencode > config file
+    let mut ai_client = if cli.local {
+        // Force loading local built-in model
+        println!("{}", "Mengaktifkan model built-in offline lokal...".yellow());
+        AiClient::Local(Box::new(LocalModelClient::load_built_in()?))
+    } else if let Some(opencode_args) = cli.opencode {
+        let base_url = opencode_args[0].clone();
+        let api_key = load_opencode_api_key().unwrap_or_default();
+        let model = if opencode_args.len() > 1 {
+            opencode_args[1].clone()
+        } else if cli.model != "qwen2.5:1.5b" {
+            // Use --model flag if explicitly set
+            cli.model.clone()
+        } else {
+            // Use default model from opencode config if available
+            load_opencode_model().unwrap_or_else(|| "gpt-4o-mini".to_string())
+        };
+        let openai_config = crate::config::OpenAiConfig {
+            base_url: Some(base_url),
+            api_key: Some(api_key),
+            model,
+            ..Default::default()
+        };
+        AiClient::OpenAi(rag::OpenAiClient::new(openai_config))
+    } else {
+        let config = crate::config::LlmConfig::load_or_create()?;
 
-    let mut ai_client = crate::config::load_ai_client_from_config(&config).await?;
+        // If provider is Ollama, apply --ollama-url and --model overrides
+        let mut config = config;
+        if config.active_api_provider == crate::config::ApiProvider::Ollama {
+            if cli.ollama_url != "http://localhost:11434" {
+                config.ollama.base_url = cli.ollama_url.clone();
+            }
+            if cli.model != "qwen2.5:1.5b" {
+                config.ollama.model = cli.model.clone();
+            }
+        }
+
+        // Auto-fallback: If Ollama is the provider but unreachable, fall back to local model
+        if config.active_api_provider == crate::config::ApiProvider::Ollama {
+            let ollama = rag::OllamaClient::new(config.ollama.clone());
+            if !ollama.ping().await {
+                println!("{}", "Ollama tidak terdeteksi.".yellow());
+                println!("{}", "Mengaktifkan model built-in offline lokal...".yellow());
+                AiClient::Local(Box::new(LocalModelClient::load_built_in()?))
+            } else {
+                crate::config::load_ai_client_from_config(&config).await?
+            }
+        } else {
+            crate::config::load_ai_client_from_config(&config).await?
+        }
+    };
 
     if let Some(query) = &cli.query {
         return run_single_query(
@@ -92,6 +154,39 @@ pub async fn run(cli: Cli) -> Result<()> {
     }
 
     run_interactive(&mut ai_client, &rag_pipeline, cli.no_summary, cli.yes).await
+}
+
+fn load_opencode_api_key() -> Option<String> {
+    let home = std::env::var("HOME").ok()?;
+    let config_path = std::path::PathBuf::from(home)
+        .join(".config/opencode/opencode.json");
+    let content = std::fs::read_to_string(config_path).ok()?;
+    let v: Value = serde_json::from_str(&content).ok()?;
+
+    // Try to find apiKey from any provider
+    let provider = v["provider"].as_object()?;
+    for (_, provider_config) in provider {
+        if let Some(api_key) = provider_config["options"]["apiKey"].as_str() {
+            return Some(api_key.to_string());
+        }
+    }
+    None
+}
+
+fn load_opencode_model() -> Option<String> {
+    let home = std::env::var("HOME").ok()?;
+    let config_path = std::path::PathBuf::from(home)
+        .join(".config/opencode/opencode.json");
+    let content = std::fs::read_to_string(config_path).ok()?;
+    let v: Value = serde_json::from_str(&content).ok()?;
+    let model = v["model"].as_str()?.to_string();
+
+    // Strip provider prefix: "provider/model-name" -> "model-name"
+    if model.contains('/') {
+        Some(model[model.find('/').unwrap() + 1..].to_string())
+    } else {
+        Some(model)
+    }
 }
 
 // ─── Single Query Mode ────────────────────────────────────────────────────────
@@ -157,6 +252,12 @@ async fn run_interactive(
                 format!("(model: {})", groq.config.model).dimmed()
             );
         }
+        AiClient::Local(_) => {
+            println!(
+                "  {}",
+                "Menggunakan model built-in lokal".green().bold()
+            );
+        }
     }
     println!();
     println!(
@@ -204,6 +305,83 @@ async fn run_interactive(
                 continue;
             }
             _ => {}
+        }
+
+        // /find [folder|file] [/|.] <nama> — search tanpa lewat AI
+        // Contoh:
+        //   /find undip             → cari folder & file bernama undip di Home
+        //   /find folder undip      → hanya folder
+        //   /find file config.json  → hanya file
+        //   /find / undip           → cari di seluruh laptop
+        //   /find folder / undip    → hanya folder, seluruh laptop
+        if input.starts_with("/find") || (input.starts_with("find ") && !input.contains("=")) {
+            let args = input
+                .trim_start_matches("/find")
+                .trim_start_matches("find")
+                .trim()
+                .to_string();
+
+            if args.is_empty() {
+                println!("{}", "Penggunaan /find:".bold().truecolor(72, 187, 120));
+                println!("    /find <nama>               → cari semua di Home (~)");
+                println!("    /find folder <nama>        → hanya folder");
+                println!("    /find file <nama>          → hanya file");
+                println!("    /find / <nama>             → cari di seluruh laptop");
+                println!("    /find folder / <nama>      → hanya folder, seluruh laptop");
+            } else {
+                // ── Parse tipe (folder/file/both) ──
+                #[derive(PartialEq)]
+                enum FindType { Both, FolderOnly, FileOnly }
+
+                let (type_filter, rest) = if args.starts_with("folder ") {
+                    (FindType::FolderOnly, args[7..].trim().to_string())
+                } else if args.starts_with("file ") {
+                    (FindType::FileOnly, args[5..].trim().to_string())
+                } else {
+                    (FindType::Both, args.clone())
+                };
+
+                // ── Parse scope (/, ., atau default ~) ──
+                let (root, query) = if rest.starts_with("/ ") {
+                    (std::path::PathBuf::from("/"), rest[2..].trim().to_string())
+                } else if rest.starts_with(". ") {
+                    (std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")), rest[2..].trim().to_string())
+                } else if rest == "/" || rest == "." || rest.is_empty() {
+                    ui::print_error("Nama yang dicari tidak boleh kosong.");
+                    continue;
+                } else {
+                    let home = std::env::var("HOME").unwrap_or_else(|_| "/".to_string());
+                    (std::path::PathBuf::from(home), rest.clone())
+                };
+
+                let scope_label = if root == std::path::PathBuf::from("/") {
+                    "seluruh laptop".to_string()
+                } else if root == std::env::current_dir().unwrap_or_default() {
+                    format!("folder saat ini ({})", root.display())
+                } else {
+                    "Home (~)".to_string()
+                };
+
+                let type_label = match type_filter {
+                    FindType::FolderOnly => " [folder]",
+                    FindType::FileOnly   => " [file]",
+                    FindType::Both       => "",
+                };
+
+                println!(
+                    "  {} Mencari{} '{}' di {} ...",
+                    "🔍".truecolor(104, 211, 145),
+                    type_label.dimmed(),
+                    query.bold(),
+                    scope_label.dimmed()
+                );
+
+                let only_dirs  = type_filter == FindType::FolderOnly;
+                let only_files = type_filter == FindType::FileOnly;
+                let results = find_files_typed(&root, &query, 10, 300, only_dirs, only_files);
+                ui::print_search_results(&query, &results);
+            }
+            continue;
         }
 
         match process_query(ai_client, rag, &input, no_summary, auto_yes, &history).await {
@@ -323,4 +501,108 @@ async fn process_query(
         cmd_resp.explanation
     );
     Ok(Some(history_entry))
+}
+
+// ─── File Search ──────────────────────────────────────────────────────────────
+
+/// Cari file/folder dengan filter tipe opsional.
+/// - `only_dirs`: hanya kembalikan direktori
+/// - `only_files`: hanya kembalikan file
+pub fn find_files_typed(
+    root: &Path,
+    query: &str,
+    max_depth: usize,
+    max_results: usize,
+    only_dirs: bool,
+    only_files: bool,
+) -> Vec<String> {
+    let query_lower = query.to_lowercase();
+    let mut results = Vec::new();
+    find_recursive(root, &query_lower, 0, max_depth, max_results, only_dirs, only_files, &mut results);
+    results
+}
+
+/// Backward-compatible wrapper (cari semua tipe)
+pub fn find_files(root: &Path, query: &str, max_depth: usize, max_results: usize) -> Vec<String> {
+    find_files_typed(root, query, max_depth, max_results, false, false)
+}
+
+fn find_recursive(
+    dir: &Path,
+    query: &str,
+    depth: usize,
+    max_depth: usize,
+    max_results: usize,
+    only_dirs: bool,
+    only_files: bool,
+    results: &mut Vec<String>,
+) {
+    if depth > max_depth || results.len() >= max_results {
+        return;
+    }
+
+    let skip_dirs = [
+        // Build artifacts & Rust
+        "target", ".git",
+        // JS package managers & caches
+        "node_modules", ".bun", ".npm", ".yarn", ".pnpm-store",
+        // Python
+        "__pycache__", ".venv", "venv", ".virtualenv",
+        // Rust
+        ".cargo",
+        // General cache & temp
+        ".cache", ".tmp", "tmp",
+        // Build output
+        "dist", "build", ".next", ".nuxt", ".svelte-kit", "out",
+        // macOS system
+        "Library",
+        // PHP
+        "vendor",
+    ];
+
+    let entries = match std::fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+
+    for entry in entries.flatten() {
+        if results.len() >= max_results {
+            break;
+        }
+
+        let path = entry.path();
+        let name = match path.file_name().and_then(|n| n.to_str()) {
+            Some(n) => n.to_string(),
+            None => continue,
+        };
+
+        let is_dir  = path.is_dir();
+        let is_file = path.is_file();
+
+        // Skip direktori berat
+        if is_dir && skip_dirs.contains(&name.as_str()) {
+            continue;
+        }
+
+        // Filter tipe
+        let should_match = if only_dirs  { is_dir  }
+                           else if only_files { is_file }
+                           else { true };
+
+        // Cocokkan nama (case-insensitive, partial match)
+        if should_match && name.to_lowercase().contains(query) {
+            // Untuk folder: tampilkan dengan trailing /
+            let display = if is_dir {
+                format!("{}/", path.display())
+            } else {
+                path.display().to_string()
+            };
+            results.push(display);
+        }
+
+        // Rekursi ke subdirektori
+        if is_dir {
+            find_recursive(&path, query, depth + 1, max_depth, max_results, only_dirs, only_files, results);
+        }
+    }
 }

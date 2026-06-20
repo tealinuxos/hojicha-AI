@@ -180,6 +180,16 @@
     "beginner_tip": "Hati-hati: pkill akan menghentikan semua proses dengan nama tersebut"
   },
   {
+    "id": "file-cd",
+    "command": "cd",
+    "description": "Berpindah ke direktori/folder lain di dalam sistem file",
+    "keywords": ["cd", "pindah folder", "pindah direktori", "masuk ke folder", "masuk ke direktori", "masuk", "mundur", "kembali", "change directory", "pindah"],
+    "category": "Files",
+    "risk": "Safe",
+    "example": "cd nama_folder",
+    "beginner_tip": "Gunakan 'cd ..' untuk naik/mundur satu tingkat, atau 'cd ~' untuk kembali ke direktori home."
+  },
+  {
     "id": "file-ls",
     "command": "ls -la",
     "description": "Menampilkan semua file dan folder di direktori saat ini termasuk yang tersembunyi",

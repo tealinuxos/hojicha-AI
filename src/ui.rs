@@ -33,6 +33,9 @@ pub fn print_help() {
     println!("  {}       - Tampilkan bantuan ini", "help / ?".truecolor(72, 187, 120));
     println!("  {}    - Tampilkan model yang digunakan", "model".truecolor(72, 187, 120));
     println!("  {}    - Bersihkan riwayat percakapan", "clear".truecolor(72, 187, 120));
+    println!("  {} - Cari file/folder di Home (~)", "/find <nama>".truecolor(72, 187, 120));
+    println!("  {}   - Cari di seluruh laptop", "/find / <nama>".truecolor(72, 187, 120));
+    println!("  {}   - Cari di folder saat ini", "/find . <nama>".truecolor(72, 187, 120));
     println!();
     println!("{}", "─".repeat(50).truecolor(60, 80, 68));
     println!();
@@ -122,4 +125,27 @@ pub fn print_goodbye() {
 
 pub fn print_error(msg: &str) {
     println!("  {} {}", "⚠ Error:".red().bold(), msg);
+}
+
+pub fn print_search_results(query: &str, results: &[String]) {
+    println!();
+    if results.is_empty() {
+        println!(
+            "  {} Tidak ada file/folder bernama '{}' ditemukan.",
+            "🔍",
+            query.bold()
+        );
+    } else {
+        println!(
+            "  {} {} hasil untuk '{}':",
+            "🔍".truecolor(104, 211, 145),
+            results.len().to_string().bold().truecolor(104, 211, 145),
+            query.bold().white()
+        );
+        println!();
+        for path in results {
+            println!("  {} {}", "→".truecolor(104, 211, 145), path.truecolor(220, 220, 220));
+        }
+    }
+    println!();
 }

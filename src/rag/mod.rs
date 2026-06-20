@@ -3,6 +3,7 @@ pub mod client;
 pub mod embedder;
 pub mod gemini;
 pub mod kb;
+pub mod local;
 pub mod ollama;
 pub mod openai;
 pub mod pipeline;
@@ -13,6 +14,7 @@ pub mod utils;
 
 pub use client::{AiClient, CommandResponse, OutputSummary};
 pub use gemini::GeminiClient;
+pub use local::LocalModelClient;
 pub use ollama::OllamaClient;
 pub use openai::OpenAiClient;
 pub use pipeline::RagPipeline;
