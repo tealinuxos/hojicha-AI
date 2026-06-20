@@ -1958,6 +1958,26 @@
     "risk": "Moderate",
     "example": "resolve_conflicts",
     "beginner_tip": "AI akan menyajikan opsi pemecahan konflik berdasarkan kedua sisi kode yang bertentangan."
+  },
+  {
+    "id": "sys-fastfetch",
+    "command": "fastfetch",
+    "description": "Menampilkan informasi sistem secara estetis di terminal (distro, kernel, CPU, RAM, GPU, dll.) dengan performa lebih cepat dari neofetch",
+    "keywords": ["fastfetch", "info sistem", "spesifikasi pc", "spek linux", "system info", "neofetch alternatif", "fetch", "info komputer"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "fastfetch",
+    "beginner_tip": "Install: sudo apt install fastfetch (Ubuntu 23.04+) atau dari GitHub releases. Lebih cepat dan aktif dikembangkan dibanding neofetch yang sudah tidak diperbarui"
+  },
+  {
+    "id": "sys-neofetch",
+    "command": "neofetch",
+    "description": "Menampilkan informasi sistem Linux (distro, kernel, CPU, RAM, dll.) dengan logo ASCII distro di terminal",
+    "keywords": ["neofetch", "info sistem", "ascii logo", "system info", "spek linux", "fetch", "info komputer"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "neofetch",
+    "beginner_tip": "Install: sudo apt install neofetch. Catatan: neofetch sudah tidak aktif dikembangkan sejak 2023, pertimbangkan fastfetch sebagai alternatif yang lebih cepat"
   }
 ]
 

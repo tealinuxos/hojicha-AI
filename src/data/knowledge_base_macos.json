@@ -1308,6 +1308,26 @@
     "risk": "Moderate",
     "example": "resolve_conflicts",
     "beginner_tip": "AI akan menyajikan opsi pemecahan konflik berdasarkan kedua sisi kode yang bertentangan."
+  },
+  {
+    "id": "sys-fastfetch",
+    "command": "fastfetch",
+    "description": "Menampilkan informasi sistem macOS secara estetis di terminal (versi macOS, chip, CPU, RAM, GPU, dll.) dengan performa tinggi",
+    "keywords": ["fastfetch", "info sistem", "spesifikasi mac", "spek mac", "system info", "neofetch alternatif", "fetch", "info komputer"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "fastfetch",
+    "beginner_tip": "Install via Homebrew: brew install fastfetch. Mendukung penuh Apple Silicon (M1/M2/M3/M4) dan Intel Mac"
+  },
+  {
+    "id": "sys-neofetch",
+    "command": "neofetch",
+    "description": "Menampilkan informasi sistem macOS dengan logo Apple ASCII di terminal (versi macOS, CPU, RAM, resolusi layar, dll.)",
+    "keywords": ["neofetch", "info sistem", "apple logo ascii", "system info", "spek mac", "fetch", "info komputer"],
+    "category": "System",
+    "risk": "Safe",
+    "example": "neofetch",
+    "beginner_tip": "Install via Homebrew: brew install neofetch. Catatan: neofetch sudah tidak aktif dikembangkan sejak 2023, gunakan fastfetch sebagai pengganti yang lebih cepat"
   }
 ]
 
